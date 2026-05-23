@@ -15,13 +15,13 @@ export const mockWarehouses = [
 ];
 
 export const mockMovements = [
-  { id: "M-1001", type: "Entrée", product: "Ordinateur Portable Pro", quantity: 50, date: "2024-04-10 10:30", source: "-", destination: "Entrepôt Central", comment: "Réception fournisseur A", agent: "Ahmed R." },
-  { id: "M-1002", type: "Sortie", product: "Souris Sans Fil", quantity: 5, date: "2024-04-11 14:15", source: "Entrepôt Rabat", destination: "-", comment: "Vente client #4092", agent: "Sara M." },
-  { id: "M-1003", type: "Transfert", product: "Écran 27 pouces", quantity: 20, date: "2024-04-12 09:00", source: "Entrepôt Central", destination: "Entrepôt Nord", comment: "Équilibrage stock", agent: "Karim L." },
-  { id: "M-1004", type: "Sortie", product: "Cartouche Encre Noire", quantity: 2, date: "2024-04-13 11:20", source: "Entrepôt Rabat", destination: "-", comment: "Utilisation interne", agent: "Leila B." },
-  { id: "M-1005", type: "Entrée", product: "Disque SSD 1To", quantity: 100, date: "2024-04-14 16:45", source: "-", destination: "Entrepôt Central", comment: "Commande urgente", agent: "Ahmed R." },
-  { id: "M-1006", type: "Transfert", product: "Clavier Mécanique", quantity: 15, date: "2024-04-15 10:10", source: "Entrepôt Nord", destination: "Entrepôt Rabat", comment: "Demande de Rabat", agent: "Sara M." },
-  { id: "M-1007", type: "Sortie", product: "Imprimante Laser", quantity: 1, date: "2024-04-16 15:30", source: "Entrepôt Central", destination: "-", comment: "Vente client #4105", agent: "Karim L." },
+  { id: "M-1001", type: "Entrée", product: "Ordinateur Portable Pro", quantity: 50, date: "2024-04-10 10:30", source: "-", destination: "Entrepôt Central", comment: "Réception fournisseur A", agent: "Ahmed R.", status: "Validée" },
+  { id: "M-1002", type: "Sortie", product: "Souris Sans Fil", quantity: 5, date: "2024-04-11 14:15", source: "Entrepôt Rabat", destination: "-", comment: "Vente client #4092", agent: "Sara M.", status: "Validée" },
+  { id: "M-1003", type: "Transfert", product: "Écran 27 pouces", quantity: 20, date: "2024-04-12 09:00", source: "Entrepôt Central", destination: "Entrepôt Nord", comment: "Équilibrage stock", agent: "Karim L.", status: "Validée" },
+  { id: "M-1004", type: "Sortie", product: "Cartouche Encre Noire", quantity: 2, date: "2024-04-13 11:20", source: "Entrepôt Rabat", destination: "-", comment: "Utilisation interne", agent: "Leila B.", status: "En cours" },
+  { id: "M-1005", type: "Entrée", product: "Disque SSD 1To", quantity: 100, date: "2024-04-14 16:45", source: "-", destination: "Entrepôt Central", comment: "Commande urgente", agent: "Ahmed R.", status: "En cours" },
+  { id: "M-1006", type: "Transfert", product: "Clavier Mécanique", quantity: 15, date: "2024-04-15 10:10", source: "Entrepôt Nord", destination: "Entrepôt Rabat", comment: "Demande de Rabat", agent: "Sara M.", status: "En cours" },
+  { id: "M-1007", type: "Sortie", product: "Imprimante Laser", quantity: 1, date: "2024-04-16 15:30", source: "Entrepôt Central", destination: "-", comment: "Vente client #4105", agent: "Karim L.", status: "Annulée" },
 ];
 
 export const mockAlerts = [
