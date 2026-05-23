@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 83 45% 91%; /* #E9F5DB */
+    --foreground: 0 0% 15%; /* #262626 */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+    --primary: 84 21% 42%; /* #718355 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 83 18% 50%; /* #87986A */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 85 30% 69%; /* #B5C99A */
+    --muted-foreground: 85 20% 30%;
+    --accent: 84 23% 57%; /* #97A97C */
+    --accent-foreground: 0 0% 15%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 81 41% 80%; /* #CFE1B9 */
+    --input: 81 41% 80%; /* #CFE1B9 */
+    --ring: 84 21% 42%; /* #718355 */
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 85 20% 15%;
+    --foreground: 83 45% 91%;
+    --card: 85 20% 20%;
+    --card-foreground: 0 0% 98%;
+    --popover: 85 20% 15%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 84 21% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 83 18% 50%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 85 20% 30%;
+    --muted-foreground: 85 30% 69%;
+    --accent: 85 20% 30%;
+    --accent-foreground: 83 45% 91%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 85 20% 30%;
+    --input: 85 20% 30%;
+    --ring: 84 21% 42%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  select {
+    @apply bg-[#E9F5DB] text-foreground border-[#CFE1B9] transition-colors focus:ring-primary/50 focus:outline-none rounded-md !important;
+  }
+  select:hover {
+    @apply bg-[#CFE1B9] border-[#B5C99A] !important;
+  }
+  
+  .dark select {
+    @apply bg-[#3A4A29] text-[#E9F5DB] border-[#2A3A19] !important;
+  }
+  .dark select:hover {
+    @apply bg-[#4A5A39] border-[#3A4A29] !important;
+  }
+  
+  select option {
+    @apply bg-background text-foreground;
+  }
+}
