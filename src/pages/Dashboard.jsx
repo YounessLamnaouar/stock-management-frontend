@@ -1,12 +1,25 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { Package, Factory, ArrowRightLeft, AlertTriangle, TrendingUp, Users } from "lucide-react";
+import { Package, Factory, ArrowRightLeft, AlertTriangle, TrendingUp } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  AreaChart, Area,
+  BarChart, Bar,
+  PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { mockProducts, mockWarehouses, mockMovements, mockAlerts, mockAgents, mockCategories } from "../data/mock";
+import { mockProducts, mockWarehouses, mockMovements, mockAlerts, mockCategories } from "../data/mock";
 import { cn } from "../lib/utils";
+
+/* ─── static chart data ─── */
+const weeklyStockData = [
+  { name: 'Lun', Central: 7200, Nord: 1100, Rabat: 1920 },
+  { name: 'Mar', Central: 7350, Nord: 1150, Rabat: 1930 },
+  { name: 'Mer', Central: 7100, Nord: 1200, Rabat: 1940 },
+  { name: 'Jeu', Central: 7400, Nord: 1250, Rabat: 1950 },
+  { name: 'Ven', Central: 7500, Nord: 1200, Rabat: 1948 },
+  { name: 'Sam', Central: 7450, Nord: 1180, Rabat: 1945 },
+  { name: 'Dim', Central: 7500, Nord: 1200, Rabat: 1950 },
+];
 
 const warehouseStockData = mockWarehouses.map(w => ({
   name: w.name.replace('Entrepôt ', ''),
@@ -20,22 +33,21 @@ const categoryData = Object.entries(
 
 const COLORS = ['#718355', '#97A97C', '#CFE1B9', '#B5C99A', '#87986A'];
 
+/* ─── shared tooltip ─── */
 const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-card border rounded-xl px-4 py-3 shadow-lg text-sm">
-        <p className="font-semibold mb-2 text-foreground">{label}</p>
-        {payload.map((p, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.fill || p.stroke }} />
-            <span className="text-foreground/70">{p.name}:</span>
-            <span className="font-medium">{p.value.toLocaleString()}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border rounded-xl px-4 py-3 shadow-lg text-sm">
+      <p className="font-semibold mb-2 text-foreground">{label}</p>
+      {payload.map((p, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.fill || p.stroke || p.color }} />
+          <span className="text-foreground/70">{p.name}:</span>
+          <span className="font-medium">{Number(p.value).toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 export default function Dashboard() {
@@ -48,7 +60,7 @@ export default function Dashboard() {
         <p className="text-foreground/60">Gérez vos stocks et surveillez vos activités.</p>
       </div>
 
-      {/* KPIs */}
+      {/* ── KPIs ── */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -98,20 +110,60 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        {/* Stock par entrepôt */}
-        <Card className="col-span-4">
+      {/* ── 1. Area chart ─ full width ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Évolution du stock hebdomadaire</CardTitle>
+          <CardDescription>Niveaux de stock par entrepôt sur les 7 derniers jours</CardDescription>
+        </CardHeader>
+        <CardContent className="pl-2">
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={weeklyStockData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gCentral" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#718355" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#718355" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gNord" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#97A97C" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#97A97C" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gRabat" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#B5C99A" stopOpacity={0.5} />
+                    <stop offset="95%" stopColor="#B5C99A" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#CFE1B9" />
+                <XAxis dataKey="name" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#888" fontSize={12} tickLine={false} axisLine={false}
+                  tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} />
+                <Area type="monotone" dataKey="Central" name="Central" stroke="#718355" strokeWidth={2} fill="url(#gCentral)" dot={false} />
+                <Area type="monotone" dataKey="Nord" name="Nord" stroke="#97A97C" strokeWidth={2} fill="url(#gNord)" dot={false} />
+                <Area type="monotone" dataKey="Rabat" name="Rabat" stroke="#B5C99A" strokeWidth={2} fill="url(#gRabat)" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── 2. Bar + 3. Pie ── */}
+      <div className="grid gap-4 lg:grid-cols-7">
+        {/* Bar chart */}
+        <Card className="lg:col-span-4">
           <CardHeader>
             <CardTitle>Stock par entrepôt</CardTitle>
             <CardDescription>Stock actuel vs capacité totale</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <div className="h-[300px]">
+            <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={warehouseStockData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#CFE1B9" />
-                  <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="name" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} />
                   <Bar dataKey="stock" name="Stock actuel" fill="#718355" radius={[6, 6, 0, 0]} />
@@ -122,34 +174,27 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Répartition par catégorie */}
-        <Card className="col-span-3">
+        {/* Pie chart */}
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Produits par catégorie</CardTitle>
             <CardDescription>Répartition du catalogue</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[220px]">
+            <div className="h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
-                    {categoryData.map((_, index) => (
-                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={50} outerRadius={75}
+                    paddingAngle={4} dataKey="value">
+                    {categoryData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-2 space-y-1.5">
+            <div className="mt-3 space-y-1.5">
               {categoryData.map((cat, i) => (
                 <div key={cat.name} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
@@ -164,12 +209,10 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* ── Bottom cards ── */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Dernières alertes */}
         <Card>
-          <CardHeader>
-            <CardTitle>Dernières Alertes</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Dernières Alertes</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-4">
               {mockAlerts.slice(0, 4).map(alerte => (
@@ -190,11 +233,8 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Derniers transferts */}
         <Card>
-          <CardHeader>
-            <CardTitle>Derniers Transferts</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Derniers Transferts</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-4">
               {transferts.slice(0, 4).map(mvt => (
@@ -205,7 +245,9 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <p className="text-sm font-medium">{mvt.product}</p>
-                      <p className="text-xs text-foreground/50">{mvt.source} → {mvt.destination} • Qté: {mvt.quantity}</p>
+                      <p className="text-xs text-foreground/50">
+                        {mvt.source} → {mvt.destination} • Qté: {mvt.quantity}
+                      </p>
                     </div>
                   </div>
                   <span className="text-xs text-foreground/50 bg-surface/60 px-2 py-1 rounded-lg">
