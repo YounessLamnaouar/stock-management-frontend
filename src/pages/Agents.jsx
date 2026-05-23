@@ -138,7 +138,6 @@ export default function Agents() {
                 <TableHead>Utilisateur</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Rôle</TableHead>
-                <TableHead>Dernière activité</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -163,7 +162,6 @@ export default function Agents() {
                       <span className="font-medium">{agent.role}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-xs text-foreground/60">{agent.lastActivity}</TableCell>
                   <TableCell>
                     <Badge variant={agent.status === 'Actif' ? 'success' : 'outline'}>
                       {agent.status}
@@ -246,7 +244,6 @@ export default function Agents() {
             <p><strong>Email:</strong> {selectedAgent.email}</p>
             <p><strong>Rôle:</strong> {selectedAgent.role}</p>
             <p><strong>Statut:</strong> {selectedAgent.status}</p>
-            <p><strong>Dernière activité:</strong> {selectedAgent.lastActivity}</p>
           </div>
         )}
       </Modal>
