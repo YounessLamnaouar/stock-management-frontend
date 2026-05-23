@@ -4,11 +4,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { Download, Search, Edit, Ban, ArrowRightLeft, TrendingUp, PackageMinus, X } from "lucide-react";
+import { Download, Search, Edit, Ban, ArrowRightLeft, X } from "lucide-react";
 import { mockMovements, mockWarehouses, mockProducts } from "../data/mock";
 import { usePermissions } from "../hooks/usePermissions";
 
-// Generic Modal Wrapper
 const Modal = ({ isOpen, onClose, title, children, onSave }) => {
   if (!isOpen) return null;
   return (
@@ -34,9 +33,10 @@ const Modal = ({ isOpen, onClose, title, children, onSave }) => {
 
 export default function Movements() {
   const { can } = usePermissions();
-  const [movements, setMovements] = useState(mockMovements);
+  const [movements, setMovements] = useState(
+    mockMovements.filter(m => m.type === "Transfert")
+  );
   const [searchTerm, setSearchTerm] = useState("");
-  const [typeFilter, setTypeFilter] = useState("Tous");
   const [dateFilter, setDateFilter] = useState("");
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -44,22 +44,21 @@ export default function Movements() {
   const [selectedMovement, setSelectedMovement] = useState(null);
 
   const [formData, setFormData] = useState({
-    type: "Entrée", product: "", quantity: "", source: "", destination: "", date: ""
+    product: "", quantity: "", source: "", destination: "", date: ""
   });
 
   const warehouseOptions = mockWarehouses.map(w => w.name);
 
   const filtered = movements.filter(m => {
-    const matchSearch = m.product.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchSearch = m.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
                       m.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchType = typeFilter === "Tous" || m.type === typeFilter;
     const matchDate = dateFilter === "" || m.date.startsWith(dateFilter);
-    return matchSearch && matchType && matchDate;
+    return matchSearch && matchDate;
   });
 
   const handleAction = (action, id) => {
     if (action === "annuler") {
-      if(window.confirm("Annuler ce mouvement ?")) {
+      if (window.confirm("Annuler ce transfert ?")) {
         setMovements(movements.filter(m => m.id !== id));
       }
     } else {
@@ -77,31 +76,31 @@ export default function Movements() {
   };
 
   const handleSaveAdd = () => {
-    if (!formData.product || !formData.quantity || !formData.date) return alert("Remplissez tous les champs.");
+    if (!formData.product || !formData.quantity || !formData.source || !formData.destination || !formData.date)
+      return alert("Remplissez tous les champs.");
     setMovements([{
       id: `M-${Date.now().toString().slice(-4)}`,
+      type: "Transfert",
       ...formData,
       agent: "Ahmed R.",
       comment: "Ajout manuel"
     }, ...movements]);
     setIsAddModalOpen(false);
-    setFormData({type: "Entrée", product: "", quantity: "", source: "-", destination: "-", date: ""});
+    setFormData({ product: "", quantity: "", source: "", destination: "", date: "" });
   };
-
-
 
   return (
     <div className="space-y-6 relative">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-primary">Historique des mouvements</h2>
-          <p className="text-foreground/60">Suivez toutes les entrées, sorties et transferts de vos entrepôts.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-primary">Historique des transferts</h2>
+          <p className="text-foreground/60">Suivez tous les transferts de stock entre entrepôts.</p>
         </div>
         <div className="flex gap-2">
-           <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2">
             <Download size={16} /> Exporter
           </Button>
-          <Button className="gap-2 text-white" onClick={() => setIsAddModalOpen(true)}>Nouvel Enregistrement</Button>
+          <Button className="gap-2 text-white" onClick={() => setIsAddModalOpen(true)}>Nouveau Transfert</Button>
         </div>
       </div>
 
@@ -110,28 +109,11 @@ export default function Movements() {
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex gap-2 items-center flex-wrap shrink-0">
               <Input type="date" className="h-9 w-40 bg-surface/30 px-3" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
-              
-              <div className="hidden sm:flex gap-1 ml-2">
-                <Button variant={typeFilter === "Tous" ? "secondary" : "ghost"} className="gap-2 text-sm" onClick={() => setTypeFilter("Tous")}>Tous</Button>
-                <Button variant={typeFilter === "Entrée" ? "secondary" : "ghost"} className="gap-2 text-sm text-primary" onClick={() => setTypeFilter("Entrée")}><TrendingUp size={14}/> Entrées</Button>
-                <Button variant={typeFilter === "Sortie" ? "secondary" : "ghost"} className="gap-2 text-sm text-accent" onClick={() => setTypeFilter("Sortie")}><PackageMinus size={14}/> Sorties</Button>
-                <Button variant={typeFilter === "Transfert" ? "secondary" : "ghost"} className="gap-2 text-sm text-secondary" onClick={() => setTypeFilter("Transfert")}><ArrowRightLeft size={14}/> Transferts</Button>
-              </div>
-              <select 
-                className="sm:hidden h-9 rounded-md px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-              >
-                <option value="Tous">Tous</option>
-                <option value="Entrée">Entrées</option>
-                <option value="Sortie">Sorties</option>
-                <option value="Transfert">Transferts</option>
-              </select>
             </div>
-            
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground/50" />
               <Input
-                placeholder="Rechercher un produit, ID mouvement..."
+                placeholder="Rechercher un produit, ID transfert..."
                 className="pl-9 w-full bg-surface/30"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -144,7 +126,6 @@ export default function Movements() {
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
-                <TableHead>Type</TableHead>
                 <TableHead>Produit</TableHead>
                 <TableHead>Qté</TableHead>
                 <TableHead>Source</TableHead>
@@ -158,14 +139,6 @@ export default function Movements() {
               {filtered.map((mvt) => (
                 <TableRow key={mvt.id}>
                   <TableCell className="font-medium text-xs">{mvt.id}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={mvt.type === 'Entrée' ? 'success' : mvt.type === 'Sortie' ? 'warning' : 'outline'}
-                      className={mvt.type === 'Transfert' ? 'border-primary text-primary' : ''}
-                    >
-                      {mvt.type}
-                    </Badge>
-                  </TableCell>
                   <TableCell className="font-medium">{mvt.product}</TableCell>
                   <TableCell className="font-bold">{mvt.quantity}</TableCell>
                   <TableCell>{mvt.source}</TableCell>
@@ -196,111 +169,96 @@ export default function Movements() {
       </Card>
 
       {/* Add Modal */}
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Nouvel enregistrement" onSave={handleSaveAdd}>
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Nouveau transfert" onSave={handleSaveAdd}>
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2 col-span-2">
-            <label className="text-sm font-medium">Type de mouvement</label>
-            <select className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" 
-              value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
-              <option value="Entrée">Entrée</option>
-              <option value="Sortie">Sortie</option>
-              <option value="Transfert">Transfert</option>
-            </select>
-          </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Produit</label>
-            <select className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" 
-              value={formData.product} onChange={e => setFormData({...formData, product: e.target.value})}>
+            <select className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={formData.product} onChange={e => setFormData({ ...formData, product: e.target.value })}>
               <option value="" disabled>Sélectionner un produit...</option>
               {mockProducts.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
             </select>
           </div>
-          <div className="space-y-2"><label className="text-sm font-medium">Quantité</label><Input type="number" value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} placeholder="0" /></div>
-          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Quantité</label>
+            <Input type="number" value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })} placeholder="0" />
+          </div>
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Source</label>
-            <select 
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-              disabled={formData.type === "Entrée"}
-              value={formData.type === "Entrée" ? "" : formData.source}
-              onChange={e => setFormData({...formData, source: e.target.value})}
-            >
-              <option value="" disabled>Sélectionner...</option>
-              {warehouseOptions.map(w => <option key={w} value={w}>{w}</option>)}
-            </select>
-          </div>
-          
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Destination</label>
-            <select 
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-              disabled={formData.type === "Sortie"}
-              value={formData.type === "Sortie" ? "" : formData.destination}
-              onChange={e => setFormData({...formData, destination: e.target.value})}
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })}
             >
               <option value="" disabled>Sélectionner...</option>
               {warehouseOptions.map(w => <option key={w} value={w}>{w}</option>)}
             </select>
           </div>
 
-          <div className="space-y-2 col-span-2"><label className="text-sm font-medium">Date</label><Input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} /></div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Destination</label>
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={formData.destination} onChange={e => setFormData({ ...formData, destination: e.target.value })}
+            >
+              <option value="" disabled>Sélectionner...</option>
+              {warehouseOptions.map(w => <option key={w} value={w}>{w}</option>)}
+            </select>
+          </div>
+
+          <div className="space-y-2 col-span-2">
+            <label className="text-sm font-medium">Date</label>
+            <Input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+          </div>
         </div>
       </Modal>
 
       {/* Edit Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Modifier le mouvement" onSave={handleSaveEdit}>
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Modifier le transfert" onSave={handleSaveEdit}>
         {selectedMovement && (
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2 col-span-2">
-              <label className="text-sm font-medium">Type de mouvement</label>
-              <select className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" 
-                value={selectedMovement.type} onChange={e => setSelectedMovement({...selectedMovement, type: e.target.value})}>
-                <option value="Entrée">Entrée</option>
-                <option value="Sortie">Sortie</option>
-                <option value="Transfert">Transfert</option>
-              </select>
-            </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Produit</label>
-              <select className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" 
-                value={selectedMovement.product} onChange={e => setSelectedMovement({...selectedMovement, product: e.target.value})}>
+              <select className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={selectedMovement.product} onChange={e => setSelectedMovement({ ...selectedMovement, product: e.target.value })}>
                 <option value="" disabled>Sélectionner un produit...</option>
                 {mockProducts.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
               </select>
             </div>
-            <div className="space-y-2"><label className="text-sm font-medium">Quantité</label><Input type="number" value={selectedMovement.quantity} onChange={e => setSelectedMovement({...selectedMovement, quantity: e.target.value})} /></div>
-            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Quantité</label>
+              <Input type="number" value={selectedMovement.quantity} onChange={e => setSelectedMovement({ ...selectedMovement, quantity: e.target.value })} />
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Source</label>
-              <select 
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-                disabled={selectedMovement.type === "Entrée"}
-                value={selectedMovement.type === "Entrée" ? "" : selectedMovement.source}
-                onChange={e => setSelectedMovement({...selectedMovement, source: e.target.value})}
-              >
-                <option value="" disabled>Sélectionner...</option>
-                {warehouseOptions.map(w => <option key={w} value={w}>{w}</option>)}
-              </select>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Destination</label>
-              <select 
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-                disabled={selectedMovement.type === "Sortie"}
-                value={selectedMovement.type === "Sortie" ? "" : selectedMovement.destination}
-                onChange={e => setSelectedMovement({...selectedMovement, destination: e.target.value})}
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={selectedMovement.source} onChange={e => setSelectedMovement({ ...selectedMovement, source: e.target.value })}
               >
                 <option value="" disabled>Sélectionner...</option>
                 {warehouseOptions.map(w => <option key={w} value={w}>{w}</option>)}
               </select>
             </div>
 
-            <div className="space-y-2 col-span-2"><label className="text-sm font-medium">Date</label><Input type="date" value={selectedMovement.date} onChange={e => setSelectedMovement({...selectedMovement, date: e.target.value})} /></div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Destination</label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={selectedMovement.destination} onChange={e => setSelectedMovement({ ...selectedMovement, destination: e.target.value })}
+              >
+                <option value="" disabled>Sélectionner...</option>
+                {warehouseOptions.map(w => <option key={w} value={w}>{w}</option>)}
+              </select>
+            </div>
+
+            <div className="space-y-2 col-span-2">
+              <label className="text-sm font-medium">Date</label>
+              <Input type="date" value={selectedMovement.date} onChange={e => setSelectedMovement({ ...selectedMovement, date: e.target.value })} />
+            </div>
           </div>
         )}
       </Modal>
-
     </div>
   );
 }

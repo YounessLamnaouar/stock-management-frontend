@@ -39,11 +39,13 @@ export const mockAgents = [
 ];
 
 export const mockTraceability = [
-  { id: "TR-9001", action: "Connexion utilisateur", date: "2024-04-17 08:30:15", details: "IP: 192.168.1.45, Succès", user: "Ahmed Radi" },
-  { id: "TR-9002", action: "Création Produit", date: "2024-04-17 08:45:22", details: "ID: P008, Nom: Casque Audio", user: "Ahmed Radi" },
-  { id: "TR-9003", action: "Validation Transfert", date: "2024-04-17 09:15:00", details: "Mvt: M-1006, Src: Nord, Dst: Rabat", user: "Sara Mernissi" },
-  { id: "TR-9004", action: "Modification Entrepôt", date: "2024-04-17 10:05:11", details: "ID: W03, Update Capacité", user: "Ahmed Radi" },
-  { id: "TR-9005", action: "Échec Connexion", date: "2024-04-17 11:20:45", details: "IP: 10.0.0.12, Mauvais mot de passe", user: "Inconnu" },
+  { id: "TR-9001", user: "Ahmed Radi", product: "Ordinateur Portable Pro", oldQty: 95, newQty: 145, date: "2024-04-10 10:30" },
+  { id: "TR-9002", user: "Sara Mernissi", product: "Souris Sans Fil", oldQty: 435, newQty: 430, date: "2024-04-11 14:15" },
+  { id: "TR-9003", user: "Karim Lahlou", product: "Écran 27 pouces", oldQty: 70, newQty: 85, date: "2024-04-12 09:00" },
+  { id: "TR-9004", user: "Leila Berrada", product: "Cartouche Encre Noire", oldQty: 14, newQty: 12, date: "2024-04-13 11:20" },
+  { id: "TR-9005", user: "Ahmed Radi", product: "Disque SSD 1To", oldQty: 220, newQty: 320, date: "2024-04-14 16:45" },
+  { id: "TR-9006", user: "Sara Mernissi", product: "Clavier Mécanique", oldQty: 171, newQty: 156, date: "2024-04-15 10:10" },
+  { id: "TR-9007", user: "Karim Lahlou", product: "Imprimante Laser", oldQty: 1, newQty: 0, date: "2024-04-16 15:30" },
 ];
 
 export const mockCategories = [
