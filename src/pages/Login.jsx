@@ -33,20 +33,20 @@ const QUICK_ROLES = [
 ];
 
 const FEATURES = [
-  { icon: Zap,       text: "Interface intuitive et réactive" },
-  { icon: Lock,      text: "Données sécurisées et chiffrées" },
+  { icon: Zap,      text: "Interface intuitive et réactive" },
+  { icon: Lock,     text: "Données sécurisées et chiffrées" },
   { icon: BarChart2, text: "Tableaux de bord en temps réel" },
 ];
 
 export default function Login() {
   const { login, loginAsRole } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail]               = useState("");
-  const [password, setPassword]         = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError]               = useState("");
-  const [loading, setLoading]           = useState(false);
-  const [activeRole, setActiveRole]     = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [activeRole, setActiveRole] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
