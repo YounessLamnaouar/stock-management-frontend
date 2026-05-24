@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Input } from "../components/ui/input";
@@ -54,29 +55,48 @@ const STATUS_OPTIONS = [
 
 const StatusSelect = ({ value, onChange, disabled }) => {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const btnRef = useRef(null);
+  const dropRef = useRef(null);
   const current = STATUS_OPTIONS.find(o => o.value === value) || STATUS_OPTIONS[0];
+
+  const handleOpen = () => {
+    if (disabled) return;
+    if (!open) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + window.scrollY + 6, left: rect.left + window.scrollX });
+    }
+    setOpen(o => !o);
+  };
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handler = (e) => {
+      if (!btnRef.current?.contains(e.target) && !dropRef.current?.contains(e.target))
+        setOpen(false);
+    };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
   return (
-    <div ref={ref} className="relative inline-block">
+    <div className="inline-block">
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => !disabled && setOpen(o => !o)}
+        onClick={handleOpen}
         className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors ${current.pill} ${disabled ? "" : "cursor-pointer"}`}
       >
         {current.value}
         {!disabled && <ChevronDown size={11} className="opacity-50" />}
       </button>
 
-      {open && (
-        <div className="absolute top-full left-0 mt-1.5 bg-white border border-border/60 rounded-xl shadow-xl z-50 overflow-hidden min-w-[120px] py-1">
+      {open && createPortal(
+        <div
+          ref={dropRef}
+          style={{ position: "absolute", top: pos.top, left: pos.left, zIndex: 9999 }}
+          className="bg-white border border-border/60 rounded-xl shadow-2xl overflow-hidden min-w-[130px] py-1"
+        >
           {STATUS_OPTIONS.map(opt => (
             <button
               key={opt.value}
@@ -90,7 +110,8 @@ const StatusSelect = ({ value, onChange, disabled }) => {
               {opt.value}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
