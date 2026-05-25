@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Download, Search, Edit, Ban, X } from "lucide-react";
+import { Download, Search, Edit, Ban, X, ChevronDown } from "lucide-react";
 import { mockMovements, mockWarehouses, mockProducts } from "../data/mock";
 import { usePermissions } from "../hooks/usePermissions";
 
@@ -45,6 +46,76 @@ const Field = ({ label, required, hint, children }) => (
 );
 
 const selectClass = "flex h-10 w-full rounded-md border border-input bg-surface/30 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+const STATUS_OPTIONS = [
+  { value: "En cours", dot: "bg-blue-500",  pill: "bg-blue-50 text-blue-700 border-blue-200",   hover: "hover:bg-blue-50 hover:text-blue-700" },
+  { value: "Validée",  dot: "bg-green-500", pill: "bg-green-50 text-green-700 border-green-200", hover: "hover:bg-green-50 hover:text-green-700" },
+  { value: "Annulée",  dot: "bg-red-500",   pill: "bg-red-50 text-red-700 border-red-200",       hover: "hover:bg-red-50 hover:text-red-700" },
+];
+
+const StatusSelect = ({ value, onChange, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const btnRef = useRef(null);
+  const dropRef = useRef(null);
+  const current = STATUS_OPTIONS.find(o => o.value === value) || STATUS_OPTIONS[0];
+
+  const handleOpen = () => {
+    if (disabled) return;
+    if (!open) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + window.scrollY + 6, left: rect.left + window.scrollX });
+    }
+    setOpen(o => !o);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (!btnRef.current?.contains(e.target) && !dropRef.current?.contains(e.target))
+        setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div className="inline-block">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={handleOpen}
+        className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors ${current.pill} ${disabled ? "" : "cursor-pointer"}`}
+      >
+        {current.value}
+        {!disabled && <ChevronDown size={11} className="opacity-50" />}
+      </button>
+
+      {open && createPortal(
+        <div
+          ref={dropRef}
+          style={{ position: "absolute", top: pos.top, left: pos.left, zIndex: 9999 }}
+          className="bg-white border border-border/60 rounded-xl shadow-2xl overflow-hidden min-w-[130px] py-1"
+        >
+          {STATUS_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              className={`w-full text-left text-xs font-medium px-3 py-2.5 flex items-center gap-2.5 transition-colors ${
+                opt.value === value ? opt.pill : `text-foreground/70 ${opt.hover}`
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full shrink-0 ${opt.dot}`} />
+              {opt.value}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
 
 export default function Movements() {
   const { can } = usePermissions();
@@ -184,33 +255,11 @@ export default function Movements() {
                   <TableCell className="text-xs text-foreground/70">{mvt.date}</TableCell>
                   <TableCell>{mvt.agent}</TableCell>
                   <TableCell>
-                    {can.editMovements ? (
-                      <select
-                        value={mvt.status || "En cours"}
-                        onChange={e => handleStatusChange(mvt.id, e.target.value)}
-                        className={`text-xs font-medium px-2.5 py-1 rounded-full border cursor-pointer outline-none ${
-                          (mvt.status || "En cours") === "Validée"
-                            ? "bg-green-50 text-green-700 border-green-200"
-                            : (mvt.status || "En cours") === "Annulée"
-                            ? "bg-red-50 text-red-700 border-red-200"
-                            : "bg-blue-50 text-blue-700 border-blue-200"
-                        }`}
-                      >
-                        <option value="En cours">En cours</option>
-                        <option value="Validée">Validée</option>
-                        <option value="Annulée">Annulée</option>
-                      </select>
-                    ) : (
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full border inline-block ${
-                        (mvt.status || "En cours") === "Validée"
-                          ? "bg-green-50 text-green-700 border-green-200"
-                          : (mvt.status || "En cours") === "Annulée"
-                          ? "bg-red-50 text-red-700 border-red-200"
-                          : "bg-blue-50 text-blue-700 border-blue-200"
-                      }`}>
-                        {mvt.status || "En cours"}
-                      </span>
-                    )}
+                    <StatusSelect
+                      value={mvt.status || "En cours"}
+                      onChange={newStatus => handleStatusChange(mvt.id, newStatus)}
+                      disabled={!can.editMovements}
+                    />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
