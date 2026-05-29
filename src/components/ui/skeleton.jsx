@@ -1,60 +1,42 @@
-export function Skeleton({ className = "" }) {
-  return <div className={`animate-pulse rounded-md bg-surface/60 ${className}`} />;
-}
+import WareTrackLogo from "./WareTrackLogo";
 
-export function TableSkeleton({ rows = 5, cols = 4 }) {
+function Spinner({ message }) {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Skeleton className="h-8 w-48 mb-2" />
-          <Skeleton className="h-4 w-72" />
-        </div>
-        <Skeleton className="h-9 w-36" />
-      </div>
-      <div className="rounded-xl border overflow-hidden">
-        <div className="px-4 py-3 border-b bg-surface/20">
-          <Skeleton className="h-9 w-72" />
-        </div>
-        <div className="divide-y">
-          {Array.from({ length: rows }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 px-4 py-3">
-              {Array.from({ length: cols }).map((_, j) => (
-                <div key={j} className={`${j === cols - 1 ? "ml-auto w-20" : "flex-1"}`}>
-                  <Skeleton className="h-4 w-full" />
-                </div>
-              ))}
-            </div>
-          ))}
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-5 select-none">
+      {/* Ring */}
+      <div className="relative w-[72px] h-[72px] flex items-center justify-center">
+        {/* Track */}
+        <div className="absolute inset-0 rounded-full border-[3px] border-primary/15" />
+        {/* Active arc */}
+        <div className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-primary animate-spin" />
+        {/* Center badge */}
+        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md">
+          <WareTrackLogo className="w-6 h-[17px]" />
         </div>
       </div>
+
+      {/* Dots */}
+      <div className="flex gap-1.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "0ms" }} />
+        <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: "150ms" }} />
+        <span className="w-1.5 h-1.5 rounded-full bg-primary/20 animate-bounce" style={{ animationDelay: "300ms" }} />
+      </div>
+
+      {message && (
+        <p className="text-sm text-foreground/45 font-medium tracking-wide">{message}</p>
+      )}
     </div>
   );
+}
+
+export function Skeleton({ className = "" }) {
+  return <div className={`animate-pulse rounded-md bg-primary/10 ${className}`} />;
+}
+
+export function TableSkeleton() {
+  return <Spinner message="Chargement des données…" />;
 }
 
 export function DashboardSkeleton() {
-  return (
-    <div className="space-y-6 animate-pulse">
-      <div>
-        <Skeleton className="h-8 w-48 mb-2" />
-        <Skeleton className="h-4 w-72" />
-      </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-xl border p-5 space-y-3">
-            <div className="flex justify-between items-center">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-4 w-4 rounded" />
-            </div>
-            <Skeleton className="h-8 w-16" />
-            <Skeleton className="h-3 w-24" />
-          </div>
-        ))}
-      </div>
-      <div className="rounded-xl border p-5 space-y-3">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-[220px] w-full" />
-      </div>
-    </div>
-  );
+  return <Spinner message="Chargement du tableau de bord…" />;
 }

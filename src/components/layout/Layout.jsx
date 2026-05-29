@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Package, Bell, Menu, X, LogOut, AlertTriangle, PackageX, Trash2 } from "lucide-react";
+import { Bell, Menu, X, LogOut, AlertTriangle, PackageX, Trash2 } from "lucide-react";
+import WareTrackLogo from "../ui/WareTrackLogo";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { getRoleFromPath } from "../../config/roles";
@@ -21,10 +22,10 @@ export function Sidebar({ isOpen, setIsOpen, role }) {
       )}>
         <div className="flex h-16 items-center justify-between px-6 border-b">
           <div className="flex items-center gap-2 font-bold text-xl text-primary tracking-tight">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-              <Package size={20} />
+            <div className="rounded-xl bg-primary p-1.5 flex items-center justify-center">
+              <WareTrackLogo className="w-9 h-6" />
             </div>
-            StockMaster
+            WareTrack
           </div>
           <button className="lg:hidden text-foreground/50 hover:text-foreground" onClick={() => setIsOpen(false)}>
             <X size={20} />

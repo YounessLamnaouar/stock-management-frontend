@@ -8,12 +8,6 @@ const ROLE_MAP = {
   Agent:        ROLES.agent,
 };
 
-const QUICK_CREDENTIALS = {
-  admin:        { email: "admin@gmail.com",        password: "123456" },
-  gestionnaire: { email: "gestionnaire@gmail.com", password: "123456" },
-  agent:        { email: "agent@gmail.com",        password: "123456" },
-};
-
 function buildUser(apiUser, token) {
   const roleName = apiUser.role?.nomRole || "Agent";
   return {
@@ -58,12 +52,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const loginAsRole = (roleKey) => {
-    const creds = QUICK_CREDENTIALS[roleKey];
-    if (!creds) return Promise.resolve({ success: false });
-    return login(creds.email, creds.password);
-  };
-
   const updateUser = (apiUser) => {
     const token = localStorage.getItem("stockmaster_token");
     const updated = buildUser(apiUser, token);
@@ -79,7 +67,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, loginAsRole, logout, updateUser, loading, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, loading, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );
