@@ -159,10 +159,10 @@ export default function Dashboard() {
             <CardDescription>Répartition du catalogue</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[200px]">
+            <div className="h-[260px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={50} outerRadius={75}
+                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={65} outerRadius={100}
                     paddingAngle={4} dataKey="value">
                     {categoryData.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -171,14 +171,6 @@ export default function Dashboard() {
                   <Tooltip content={<CustomTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2">
-              {categoryData.map((cat, i) => (
-                <div key={cat.name} className="flex items-center gap-1.5 min-w-0">
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                  <span className="text-xs text-foreground/70 truncate">{cat.name}</span>
-                </div>
-              ))}
             </div>
           </CardContent>
         </Card>

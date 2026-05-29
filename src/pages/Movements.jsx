@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Download, Search, Edit, Ban, X, ChevronDown } from "lucide-react";
+import { Download, Search, Trash2, X, ChevronDown } from "lucide-react";
 import { movementsApi } from "../api/movements";
 import { produitsApi } from "../api/produits";
 import { entrepotsApi } from "../api/entrepots";
@@ -89,7 +89,7 @@ const StatusSelect = ({ value, onChange, disabled, statusList }) => {
   return (
     <div className="inline-block">
       <button ref={btnRef} type="button" onClick={handleOpen}
-        className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors ${style.pill} ${disabled ? "" : "cursor-pointer"}`}>
+        className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-colors ${style.pill} ${disabled ? "cursor-default" : "cursor-pointer"}`}>
         {value || "—"}
         {!disabled && <ChevronDown size={11} className="opacity-50" />}
       </button>
@@ -120,23 +120,22 @@ const StatusSelect = ({ value, onChange, disabled, statusList }) => {
 
 export default function Movements() {
   const { can } = usePermissions();
-  const [movements,   setMovements]   = useState([]);
-  const [products,    setProducts]    = useState([]);
-  const [warehouses,  setWarehouses]  = useState([]);
-  const [statusList,  setStatusList]  = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [saving,      setSaving]      = useState(false);
-  const [searchTerm,  setSearchTerm]  = useState("");
-  const [dateFilter,  setDateFilter]  = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [movements,    setMovements]   = useState([]);
+  const [products,     setProducts]    = useState([]);
+  const [warehouses,   setWarehouses]  = useState([]);
+  const [statusList,   setStatusList]  = useState([]);
+  const [loading,      setLoading]     = useState(true);
+  const [saving,       setSaving]      = useState(false);
+  const [searchTerm,   setSearchTerm]  = useState("");
+  const [dateFilter,   setDateFilter]  = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [currentPage,  setCurrentPage] = useState(1);
+  const [selectedIds,  setSelectedIds] = useState(new Set());
   const itemsPerPage = 5;
 
-  const [isAddModalOpen,  setIsAddModalOpen]  = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedMovement, setSelectedMovement] = useState(null);
-
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [formData, setFormData] = useState({
-    produit_id: "", quantite: "", entrepot_source_id: "", entrepot_destination_id: "", dateMouvement: ""
+    produit_id: "", quantite: "", entrepot_source_id: "", entrepot_destination_id: ""
   });
 
   useEffect(() => {
@@ -150,7 +149,6 @@ export default function Movements() {
       setProducts(p);
       setWarehouses(e);
       setStatusList(s);
-      // statusList still used for the inline status selector in the table rows
     }).finally(() => setLoading(false));
   }, []);
 
@@ -158,37 +156,65 @@ export default function Movements() {
     const productName = m.produit?.nomProduit || "";
     const matchSearch = productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       String(m.id).includes(searchTerm);
-    const matchDate = dateFilter === "" || (m.dateMouvement || "").startsWith(dateFilter);
-    return matchSearch && matchDate;
+    const matchDate   = dateFilter   === "" || (m.dateMouvement || "").startsWith(dateFilter);
+    const matchStatus = statusFilter === "" || (m.status_mouvement?.nomStatus || "En cours") === statusFilter;
+    return matchSearch && matchDate && matchStatus;
   });
 
-  const totalPages        = Math.ceil(filtered.length / itemsPerPage);
+  const totalPages         = Math.ceil(filtered.length / itemsPerPage);
   const paginatedMovements = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const allPageIds  = paginatedMovements.map(m => m.id);
+  const allSelected = allPageIds.length > 0 && allPageIds.every(id => selectedIds.has(id));
+  const someSelected = allPageIds.some(id => selectedIds.has(id)) && !allSelected;
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        allPageIds.forEach(id => next.delete(id));
+      } else {
+        allPageIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const handleStatusChange = async (mvt, newStatus) => {
     try {
       const updated = await movementsApi.update(mvt.id, { status_mouvement_id: newStatus.id });
-      setMovements(movements.map(m => m.id === updated.id ? updated : m));
+      setMovements(prev => prev.map(m => m.id === updated.id ? updated : m));
       toast.success("Statut mis à jour.");
     } catch (e) {
       toast.error(e.response?.data?.message || "Erreur lors de la mise à jour du statut.");
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Annuler ce transfert ?")) return;
+  const handleBulkDelete = async () => {
+    const count = selectedIds.size;
+    if (!count) return;
+    if (!window.confirm(`Supprimer ${count} transfert(s) ?`)) return;
     try {
-      await movementsApi.delete(id);
-      setMovements(movements.filter(m => m.id !== id));
-      toast.success("Transfert supprimé.");
+      await Promise.all([...selectedIds].map(id => movementsApi.delete(id)));
+      setMovements(prev => prev.filter(m => !selectedIds.has(m.id)));
+      setSelectedIds(new Set());
+      toast.success(`${count} transfert(s) supprimé(s).`);
     } catch {
       toast.error("Erreur lors de la suppression.");
     }
   };
 
   const handleSaveAdd = async () => {
-    if (!formData.produit_id || !formData.quantite || !formData.dateMouvement)
-      return toast.error("Produit, Quantité et Date sont obligatoires.");
+    if (!formData.produit_id || !formData.quantite)
+      return toast.error("Le produit et la quantité sont obligatoires.");
     if (!formData.entrepot_source_id && !formData.entrepot_destination_id)
       return toast.error("Au moins une Source ou une Destination doit être sélectionnée.");
     setSaving(true);
@@ -196,40 +222,17 @@ export default function Movements() {
       const payload = {
         produit_id:              parseInt(formData.produit_id),
         quantite:                parseInt(formData.quantite),
-        dateMouvement:           formData.dateMouvement,
+        dateMouvement:           new Date().toISOString().split("T")[0],
         entrepot_source_id:      formData.entrepot_source_id      ? parseInt(formData.entrepot_source_id)      : null,
         entrepot_destination_id: formData.entrepot_destination_id ? parseInt(formData.entrepot_destination_id) : null,
       };
       const created = await movementsApi.create(payload);
-      setMovements([created, ...movements]);
+      setMovements(prev => [created, ...prev]);
       setIsAddModalOpen(false);
-      setFormData({ produit_id: "", quantite: "", entrepot_source_id: "", entrepot_destination_id: "", dateMouvement: "" });
+      setFormData({ produit_id: "", quantite: "", entrepot_source_id: "", entrepot_destination_id: "" });
       toast.success("Transfert créé avec succès.");
     } catch (e) {
       toast.error(e.response?.data?.message || "Erreur lors de la création.");
-    } finally { setSaving(false); }
-  };
-
-  const handleSaveEdit = async () => {
-    if (!selectedMovement.produit_id || !selectedMovement.quantite || !selectedMovement.dateMouvement)
-      return toast.error("Produit, Quantité et Date sont obligatoires.");
-    if (!selectedMovement.entrepot_source_id && !selectedMovement.entrepot_destination_id)
-      return toast.error("Au moins une Source ou une Destination doit être sélectionnée.");
-    setSaving(true);
-    try {
-      const updated = await movementsApi.update(selectedMovement.id, {
-        produit_id:              parseInt(selectedMovement.produit_id),
-        quantite:                parseInt(selectedMovement.quantite),
-        dateMouvement:           selectedMovement.dateMouvement,
-        status_mouvement_id:     parseInt(selectedMovement.status_mouvement_id),
-        entrepot_source_id:      selectedMovement.entrepot_source_id      ? parseInt(selectedMovement.entrepot_source_id)      : null,
-        entrepot_destination_id: selectedMovement.entrepot_destination_id ? parseInt(selectedMovement.entrepot_destination_id) : null,
-      });
-      setMovements(movements.map(m => m.id === updated.id ? updated : m));
-      setIsEditModalOpen(false);
-      toast.success("Transfert mis à jour avec succès.");
-    } catch (e) {
-      toast.error(e.response?.data?.message || "Erreur lors de la mise à jour.");
     } finally { setSaving(false); }
   };
 
@@ -245,7 +248,7 @@ export default function Movements() {
     } catch { toast.error("Erreur lors de l'export."); }
   };
 
-  if (loading) return <TableSkeleton rows={5} cols={6} />;
+  if (loading) return <TableSkeleton rows={5} cols={8} />;
 
   return (
     <div className="space-y-6 relative">
@@ -266,21 +269,42 @@ export default function Movements() {
 
       <Card>
         <CardHeader className="pb-3 border-b">
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <Input type="date" className="h-9 w-40 bg-surface/30 px-3" value={dateFilter}
               onChange={e => { setDateFilter(e.target.value); setCurrentPage(1); }} />
+            <select
+              className="h-9 w-36 rounded-md border border-input bg-surface/30 px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              value={statusFilter}
+              onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}>
+              <option value="">Tous les statuts</option>
+              {statusList.map(s => <option key={s.id} value={s.nomStatus}>{s.nomStatus}</option>)}
+            </select>
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground/50" />
               <Input placeholder="Rechercher un produit, ID transfert..."
                 className="pl-9 w-full bg-surface/30"
                 value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
             </div>
+            {selectedIds.size > 0 && can.editMovements && (
+              <Button variant="destructive" size="sm" className="gap-1.5 h-9" onClick={handleBulkDelete}>
+                <Trash2 size={14} /> Supprimer ({selectedIds.size})
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10 pl-4">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-primary"
+                    checked={allSelected}
+                    ref={el => { if (el) el.indeterminate = someSelected; }}
+                    onChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>ID</TableHead>
                 <TableHead>Produit</TableHead>
                 <TableHead>Qté</TableHead>
@@ -288,14 +312,22 @@ export default function Movements() {
                 <TableHead>Destination</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Statut</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedMovements.map(mvt => {
                 const statusName = mvt.status_mouvement?.nomStatus || "En cours";
+                const locked     = statusName === "Validée" || statusName === "Annulée";
                 return (
-                  <TableRow key={mvt.id}>
+                  <TableRow key={mvt.id} className={locked ? "opacity-50" : ""}>
+                    <TableCell className="pl-4">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-primary"
+                        checked={selectedIds.has(mvt.id)}
+                        onChange={() => toggleSelect(mvt.id)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium text-xs">{mvt.id}</TableCell>
                     <TableCell className="font-medium">{mvt.produit?.nomProduit || "—"}</TableCell>
                     <TableCell className="font-bold">{mvt.quantite}</TableCell>
@@ -310,36 +342,9 @@ export default function Movements() {
                       <StatusSelect
                         value={statusName}
                         onChange={(newStatus) => handleStatusChange(mvt, newStatus)}
-                        disabled={!can.editMovements}
+                        disabled={locked || !can.editMovements}
                         statusList={statusList}
                       />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {can.editMovements ? (
-                          <>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-primary"
-                              onClick={() => {
-                                setSelectedMovement({
-                                  ...mvt,
-                                  produit_id:              mvt.produit?.id              || mvt.produit_id,
-                                  entrepot_source_id:      mvt.entrepot_source?.id      || mvt.entrepot_source_id      || "",
-                                  entrepot_destination_id: mvt.entrepot_destination?.id || mvt.entrepot_destination_id || "",
-                                  status_mouvement_id:     mvt.status_mouvement?.id     || mvt.status_mouvement_id,
-                                });
-                                setIsEditModalOpen(true);
-                              }} title="Modifier">
-                              <Edit size={14} />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
-                              onClick={() => handleDelete(mvt.id)} title="Annuler">
-                              <Ban size={14} />
-                            </Button>
-                          </>
-                        ) : (
-                          <span className="text-xs text-foreground/40">—</span>
-                        )}
-                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -403,76 +408,11 @@ export default function Movements() {
             </Field>
           </div>
 
-          <Field label="Date" required>
-            <Input type="date" value={formData.dateMouvement}
-              onChange={e => setFormData({ ...formData, dateMouvement: e.target.value })}
-              className="bg-surface/30 h-10" />
-          </Field>
-
           <p className="text-xs text-foreground/45 bg-surface/40 rounded-lg px-3 py-2">
-            Le statut sera automatiquement défini à <strong>En cours</strong>. Il pourra être mis à jour depuis la liste.
+            La date et le statut seront définis automatiquement (<strong>aujourd'hui</strong>, <strong>En cours</strong>).
             Au moins une Source ou une Destination est requise.
           </p>
         </div>
-      </Modal>
-
-      {/* Edit Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}
-        title="Modifier le transfert" subtitle="Au moins une Source ou une Destination est requise"
-        onSave={handleSaveEdit}>
-        {selectedMovement && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Produit" required>
-                <select className={selectClass} value={selectedMovement.produit_id || ""}
-                  onChange={e => setSelectedMovement({ ...selectedMovement, produit_id: e.target.value })}>
-                  <option value="" disabled>Sélectionner un produit...</option>
-                  {products.map(p => <option key={p.id} value={p.id}>{p.nomProduit}</option>)}
-                </select>
-              </Field>
-              <Field label="Quantité" required>
-                <Input type="number" value={selectedMovement.quantite || ""}
-                  onChange={e => setSelectedMovement({ ...selectedMovement, quantite: e.target.value })}
-                  className="bg-surface/30 h-10" />
-              </Field>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Source" hint="(optionnel)">
-                <select className={selectClass} value={selectedMovement.entrepot_source_id || ""}
-                  onChange={e => setSelectedMovement({ ...selectedMovement, entrepot_source_id: e.target.value })}>
-                  <option value="">— aucune —</option>
-                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.nomEntrepot}</option>)}
-                </select>
-              </Field>
-              <Field label="Destination" hint="(optionnel)">
-                <select className={selectClass} value={selectedMovement.entrepot_destination_id || ""}
-                  onChange={e => setSelectedMovement({ ...selectedMovement, entrepot_destination_id: e.target.value })}>
-                  <option value="">— aucune —</option>
-                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.nomEntrepot}</option>)}
-                </select>
-              </Field>
-            </div>
-
-            <Field label="Date" required>
-              <Input type="date" value={selectedMovement.dateMouvement || ""}
-                onChange={e => setSelectedMovement({ ...selectedMovement, dateMouvement: e.target.value })}
-                className="bg-surface/30 h-10" />
-            </Field>
-
-            <Field label="Statut">
-              <select className={selectClass} value={selectedMovement.status_mouvement_id || ""}
-                onChange={e => setSelectedMovement({ ...selectedMovement, status_mouvement_id: e.target.value })}>
-                {statusList.map(s => <option key={s.id} value={s.id}>{s.nomStatus}</option>)}
-              </select>
-            </Field>
-
-            <p className="text-xs text-foreground/45 bg-surface/40 rounded-lg px-3 py-2">
-              Si une Source ou Destination n'est pas sélectionnée, elle sera enregistrée comme vide.
-              Les deux champs vides ne sont pas acceptés.
-            </p>
-          </div>
-        )}
       </Modal>
     </div>
   );

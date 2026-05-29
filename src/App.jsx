@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Layout } from "./components/layout/Layout";
 import DevTools from "./components/DevTools";
@@ -41,6 +41,28 @@ function RequireGuest({ children }) {
   return children;
 }
 
+function RequireRole({ children }) {
+  const { user } = useAuth();
+  const location = useLocation();
+
+  if (!user?.role?.homePath) return children;
+
+  const rolePrefix = user.role.homePath;
+  const path       = location.pathname;
+
+  if (path === "/") return children;
+
+  const matchesRole = path === rolePrefix || path.startsWith(rolePrefix + "/");
+  if (!matchesRole) return <Navigate to={rolePrefix} replace />;
+
+  return children;
+}
+
+function RedirectToHome() {
+  const { user } = useAuth();
+  return <Navigate to={user?.role?.homePath || "/login"} replace />;
+}
+
 function AppRoutes() {
   return (
     <>
@@ -49,9 +71,10 @@ function AppRoutes() {
 
         <Route path="/*" element={
           <RequireAuth>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Navigate to="/admin" replace />} />
+            <RequireRole>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<RedirectToHome />} />
 
                 {/* ADMIN */}
                 <Route path="/admin" element={<Dashboard />} />
@@ -83,9 +106,10 @@ function AppRoutes() {
                 <Route path="/agent/tracabilite" element={<Traceability />} />
                 <Route path="/agent/parametres" element={<Settings />} />
 
-                <Route path="*" element={<Navigate to="/admin" replace />} />
-              </Routes>
-            </Layout>
+                  <Route path="*" element={<RedirectToHome />} />
+                </Routes>
+              </Layout>
+            </RequireRole>
           </RequireAuth>
         } />
       </Routes>
