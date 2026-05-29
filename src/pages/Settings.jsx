@@ -1,21 +1,61 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { User, Lock, Bell, Palette } from "lucide-react";
+import { User, Lock, Palette } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
+import { useAuth } from "../context/AuthContext";
+import { authApi } from "../api/auth";
 
 export default function Settings() {
   const { role } = usePermissions();
+  const { user, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState("Profil");
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  const [profileForm, setProfileForm] = useState({ prenom: "", name: "", email: "" });
+  const [passwordForm, setPasswordForm] = useState({ current_password: "", password: "", password_confirmation: "" });
 
   useEffect(() => {
     setIsDarkMode(document.documentElement.classList.contains("dark"));
   }, []);
 
-  const handleSave = () => {
-    alert("Modifications sauvegardées avec succès !");
+  useEffect(() => {
+    if (user) {
+      setProfileForm({ prenom: user.prenom || "", name: user.name || "", email: user.email || "" });
+    }
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    if (!profileForm.name || !profileForm.email) return toast.error("Le nom et l'email sont obligatoires.");
+    setSavingProfile(true);
+    try {
+      const updated = await authApi.updateProfile(profileForm);
+      updateUser(updated);
+      toast.success("Profil mis à jour avec succès.");
+    } catch (e) {
+      toast.error(e.response?.data?.message || e.response?.data?.errors?.email?.[0] || "Erreur lors de la mise à jour.");
+    } finally { setSavingProfile(false); }
+  };
+
+  const handleSavePassword = async () => {
+    if (!passwordForm.current_password || !passwordForm.password || !passwordForm.password_confirmation)
+      return toast.error("Veuillez remplir tous les champs.");
+    if (passwordForm.password !== passwordForm.password_confirmation)
+      return toast.error("Les nouveaux mots de passe ne correspondent pas.");
+    if (passwordForm.password.length < 6)
+      return toast.error("Le nouveau mot de passe doit contenir au moins 6 caractères.");
+    setSavingPassword(true);
+    try {
+      await authApi.updatePassword(passwordForm);
+      setPasswordForm({ current_password: "", password: "", password_confirmation: "" });
+      toast.success("Mot de passe mis à jour avec succès.");
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Mot de passe actuel incorrect.");
+    } finally { setSavingPassword(false); }
   };
 
   const toggleDarkMode = () => {
@@ -37,83 +77,51 @@ export default function Settings() {
 
       <div className="grid gap-6 md:grid-cols-[200px_1fr]">
         <nav className="flex flex-col gap-2">
-          <Button
-            variant="ghost"
-            onClick={() => setActiveTab("Profil")}
-            className={`justify-start gap-2 ${activeTab === "Profil" ? "bg-surface hover:bg-surface text-primary" : "text-foreground/70"}`}
-          >
-            <User size={16} /> Profil
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => setActiveTab("Sécurité")}
-            className={`justify-start gap-2 ${activeTab === "Sécurité" ? "bg-surface hover:bg-surface text-primary" : "text-foreground/70"}`}
-          >
-            <Lock size={16} /> Sécurité
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => setActiveTab("Apparence")}
-            className={`justify-start gap-2 ${activeTab === "Apparence" ? "bg-surface hover:bg-surface text-primary" : "text-foreground/70"}`}
-          >
-            <Palette size={16} /> Apparence
-          </Button>
+          {["Profil", "Sécurité", "Apparence"].map(tab => {
+            const Icon = tab === "Profil" ? User : tab === "Sécurité" ? Lock : Palette;
+            return (
+              <Button key={tab} variant="ghost" onClick={() => setActiveTab(tab)}
+                className={`justify-start gap-2 ${activeTab === tab ? "bg-surface hover:bg-surface text-primary" : "text-foreground/70"}`}>
+                <Icon size={16} /> {tab}
+              </Button>
+            );
+          })}
         </nav>
 
         <div className="space-y-6">
           {activeTab === "Profil" && (
-            <>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Informations Personnelles</CardTitle>
-                  <CardDescription>Mettez à jour vos informations de compte.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Prénom</label>
-                      <Input key={role.id + "-fn"} defaultValue={role.user.firstName} className="bg-surface/30 px-3" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Nom</label>
-                      <Input key={role.id + "-ln"} defaultValue={role.user.lastName} className="bg-surface/30 px-3" />
-                    </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Informations Personnelles</CardTitle>
+                <CardDescription>Mettez à jour vos informations de compte.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Prénom</label>
+                    <Input value={profileForm.prenom} onChange={e => setProfileForm({ ...profileForm, prenom: e.target.value })}
+                      placeholder="Prénom" className="bg-surface/30 px-3" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Email professionnel</label>
-                    <Input
-                      key={role.id + "-em"}
-                      defaultValue={`${role.user.firstName.toLowerCase()}.${role.user.lastName.toLowerCase()}@compagnie.ma`}
-                      type="email"
-                      className="bg-surface/30 px-3"
-                    />
+                    <label className="text-sm font-medium">Nom</label>
+                    <Input value={profileForm.name} onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
+                      placeholder="Nom" className="bg-surface/30 px-3" />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Rôle</label>
-                    <Input value={role.label} disabled className="bg-surface/30 px-3" />
-                  </div>
-                  <Button onClick={handleSave}>Sauvegarder les modifications</Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Préférences Globales</CardTitle>
-                  <CardDescription>Paramètres de l'entreprise et export.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Format d'export par défaut</label>
-                    <select className="flex h-9 w-full rounded-md border border-input bg-surface/30 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                      <option>Excel (.xlsx)</option>
-                      <option>CSV (.csv)</option>
-                      <option>PDF (.pdf)</option>
-                    </select>
-                  </div>
-                  <Button variant="outline" onClick={handleSave}>Mettre à jour les paramètres</Button>
-                </CardContent>
-              </Card>
-            </>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email professionnel</label>
+                  <Input value={profileForm.email} onChange={e => setProfileForm({ ...profileForm, email: e.target.value })}
+                    type="email" placeholder="email@exemple.com" className="bg-surface/30 px-3" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Rôle</label>
+                  <Input value={role.label} disabled className="bg-surface/30 px-3" />
+                </div>
+                <Button onClick={handleSaveProfile} disabled={savingProfile}>
+                  {savingProfile ? "Sauvegarde..." : "Sauvegarder les modifications"}
+                </Button>
+              </CardContent>
+            </Card>
           )}
 
           {activeTab === "Sécurité" && (
@@ -125,17 +133,25 @@ export default function Settings() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Mot de passe actuel</label>
-                  <Input type="password" placeholder="••••••••" className="bg-surface/30 px-3" />
+                  <Input type="password" placeholder="••••••••" className="bg-surface/30 px-3"
+                    value={passwordForm.current_password}
+                    onChange={e => setPasswordForm({ ...passwordForm, current_password: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Nouveau mot de passe</label>
-                  <Input type="password" placeholder="••••••••" className="bg-surface/30 px-3" />
+                  <Input type="password" placeholder="••••••••" className="bg-surface/30 px-3"
+                    value={passwordForm.password}
+                    onChange={e => setPasswordForm({ ...passwordForm, password: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Confirmer le nouveau mot de passe</label>
-                  <Input type="password" placeholder="••••••••" className="bg-surface/30 px-3" />
+                  <Input type="password" placeholder="••••••••" className="bg-surface/30 px-3"
+                    value={passwordForm.password_confirmation}
+                    onChange={e => setPasswordForm({ ...passwordForm, password_confirmation: e.target.value })} />
                 </div>
-                <Button onClick={handleSave}>Sauvegarder les modifications</Button>
+                <Button onClick={handleSavePassword} disabled={savingPassword}>
+                  {savingPassword ? "Sauvegarde..." : "Changer le mot de passe"}
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -152,11 +168,9 @@ export default function Settings() {
                     <p className="font-medium text-lg">Mode Sombre (Dark Mode)</p>
                     <p className="text-sm text-foreground/60">Basculer l'interface en thème foncé.</p>
                   </div>
-                  <button
-                    onClick={toggleDarkMode}
-                    className={`w-14 h-7 rounded-full p-1 transition-colors ${isDarkMode ? 'bg-primary' : 'bg-surface/50 border'}`}
-                  >
-                    <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isDarkMode ? 'translate-x-7' : 'translate-x-0 bg-primary'}`}></div>
+                  <button onClick={toggleDarkMode}
+                    className={`w-14 h-7 rounded-full p-1 transition-colors ${isDarkMode ? "bg-primary" : "bg-surface/50 border"}`}>
+                    <div className={`w-5 h-5 rounded-full bg-white transition-transform ${isDarkMode ? "translate-x-7" : "translate-x-0 bg-primary"}`} />
                   </button>
                 </div>
               </CardContent>

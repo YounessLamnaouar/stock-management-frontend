@@ -1,8 +1,8 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Layout } from "./components/layout/Layout";
-import DevTools from "./components/DevTools";
 import Login from "./pages/Login";
+import WareTrackLogo from "./components/ui/WareTrackLogo";
 
 import Dashboard from "./pages/Dashboard";
 import DashboardGestionnaire from "./pages/DashboardGestionnaire";
@@ -18,7 +18,23 @@ import Agents from "./pages/Agents";
 import Settings from "./pages/Settings";
 
 function RequireAuth({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return (
+    <div className="flex h-screen items-center justify-center" style={{ backgroundColor: "#718355" }}>
+      <div className="flex flex-col items-center gap-6">
+        <WareTrackLogo className="w-44 h-28 drop-shadow-lg" />
+        <div className="text-center">
+          <p className="text-white text-2xl font-bold tracking-[0.25em]">WareTrack</p>
+          <p className="text-white/60 text-sm mt-1.5 tracking-wide">Chargement en cours…</p>
+        </div>
+        <div className="flex gap-2 mt-1">
+          <span className="w-2 h-2 rounded-full bg-white animate-bounce" style={{ animationDelay: "0ms" }} />
+          <span className="w-2 h-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: "150ms" }} />
+          <span className="w-2 h-2 rounded-full bg-white/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+        </div>
+      </div>
+    </div>
+  );
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return children;
 }
@@ -29,17 +45,39 @@ function RequireGuest({ children }) {
   return children;
 }
 
+function RequireRole({ children }) {
+  const { user } = useAuth();
+  const location = useLocation();
+
+  if (!user?.role?.homePath) return children;
+
+  const rolePrefix = user.role.homePath;
+  const path       = location.pathname;
+
+  if (path === "/") return children;
+
+  const matchesRole = path === rolePrefix || path.startsWith(rolePrefix + "/");
+  if (!matchesRole) return <Navigate to={rolePrefix} replace />;
+
+  return children;
+}
+
+function RedirectToHome() {
+  const { user } = useAuth();
+  return <Navigate to={user?.role?.homePath || "/login"} replace />;
+}
+
 function AppRoutes() {
   return (
-    <>
-      <Routes>
+    <Routes>
         <Route path="/login" element={<RequireGuest><Login /></RequireGuest>} />
 
         <Route path="/*" element={
           <RequireAuth>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Navigate to="/admin" replace />} />
+            <RequireRole>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<RedirectToHome />} />
 
                 {/* ADMIN */}
                 <Route path="/admin" element={<Dashboard />} />
@@ -56,6 +94,7 @@ function AppRoutes() {
                 <Route path="/gestionnaire" element={<DashboardGestionnaire />} />
                 <Route path="/gestionnaire/produits" element={<Products />} />
                 <Route path="/gestionnaire/categories" element={<Categories />} />
+                <Route path="/gestionnaire/entrepot" element={<Warehouses />} />
                 <Route path="/gestionnaire/stocks" element={<Stocks />} />
                 <Route path="/gestionnaire/mouvements" element={<Movements />} />
                 <Route path="/gestionnaire/tracabilite" element={<Traceability />} />
@@ -71,14 +110,13 @@ function AppRoutes() {
                 <Route path="/agent/tracabilite" element={<Traceability />} />
                 <Route path="/agent/parametres" element={<Settings />} />
 
-                <Route path="*" element={<Navigate to="/admin" replace />} />
-              </Routes>
-            </Layout>
+                  <Route path="*" element={<RedirectToHome />} />
+                </Routes>
+              </Layout>
+            </RequireRole>
           </RequireAuth>
         } />
-      </Routes>
-      <DevTools />
-    </>
+    </Routes>
   );
 }
 

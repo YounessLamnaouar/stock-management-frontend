@@ -1,27 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Package, Bell, Menu, X, LogOut } from "lucide-react";
+import { Bell, Menu, X, LogOut, AlertTriangle, PackageX, Trash2 } from "lucide-react";
+import WareTrackLogo from "../ui/WareTrackLogo";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { getRoleFromPath } from "../../config/roles";
-import { mockAlerts } from "../../data/mock";
 import { useAuth } from "../../context/AuthContext";
-
-function buildNotifications(role) {
-  return mockAlerts
-    .filter((a) => a.status !== "Clôturé")
-    .slice(0, 4)
-    .map((a, i) => ({
-      id: a.id,
-      type: a.level === "Élevé" ? "Alerte: Niveau Élevé" : a.level === "Moyenne" ? "Alerte: Niveau Moyen" : "Alerte: Information",
-      level: a.level,
-      message: `${a.message} : ${a.product}`,
-      detail: a.warehouse,
-      date: i === 0 ? "Il y a 5 min" : i === 1 ? "Il y a 1h" : "Aujourd'hui",
-      read: false,
-      path: `${role.homePath}/stocks`,
-    }));
-}
+import { stocksApi } from "../../api/stocks";
 
 export function Sidebar({ isOpen, setIsOpen, role }) {
   const location = useLocation();
@@ -37,10 +22,10 @@ export function Sidebar({ isOpen, setIsOpen, role }) {
       )}>
         <div className="flex h-16 items-center justify-between px-6 border-b">
           <div className="flex items-center gap-2 font-bold text-xl text-primary tracking-tight">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-              <Package size={20} />
+            <div className="rounded-xl bg-primary p-1.5 flex items-center justify-center">
+              <WareTrackLogo className="w-9 h-6" />
             </div>
-            StockMaster
+            WareTrack
           </div>
           <button className="lg:hidden text-foreground/50 hover:text-foreground" onClick={() => setIsOpen(false)}>
             <X size={20} />
@@ -84,21 +69,52 @@ export function Topbar({ onMenuClick, role }) {
   const currentTitle = role.nav.find((item) => item.path === location.pathname)?.title || "Page";
 
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState(() => buildNotifications(role));
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showUserMenu,      setShowUserMenu]      = useState(false);
+  const [alerts,       setAlerts]       = useState([]);
+  const [dismissedIds, setDismissedIds] = useState(() => {
+    try {
+      const stored = localStorage.getItem("stockmaster_dismissed_alerts");
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+  const notifRef = useRef(null);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const fetchAlerts = useCallback(() => {
+    stocksApi.list()
+      .then(stocks => setAlerts(stocks.filter(s => s.quantite === 0 || s.quantite <= 15)))
+      .catch(() => {});
+  }, []);
 
-  const handleBellClick = () => {
-    setShowNotifications(!showNotifications);
-    setShowUserMenu(false);
-    if (unreadCount > 0 && !showNotifications) {
-      setNotifications(notifications.map((n) => ({ ...n, read: true })));
-    }
-  };
+  useEffect(() => {
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, 30000);
+    return () => clearInterval(interval);
+  }, [fetchAlerts]);
 
-  const handleLogout = () => {
-    logout();
+  useEffect(() => {
+    localStorage.setItem("stockmaster_dismissed_alerts", JSON.stringify([...dismissedIds]));
+  }, [dismissedIds]);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+    const handler = (e) => {
+      if (!notifRef.current?.contains(e.target)) setShowNotifications(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showNotifications]);
+
+  const visibleAlerts = alerts.filter(a => !dismissedIds.has(a.id));
+  const dismissOne    = (id) => setDismissedIds(prev => new Set([...prev, id]));
+  const dismissAll    = () => setDismissedIds(new Set(alerts.map(a => a.id)));
+
+  const displayName = user ? `${user.prenom || ""} ${user.name || ""}`.trim() : role.label;
+  const initials    = user
+    ? ((user.prenom?.[0] || "") + (user.name?.[0] || "")).toUpperCase() || "?"
+    : role.label[0].toUpperCase();
+
+  const handleLogout = async () => {
+    await logout();
     navigate("/login", { replace: true });
   };
 
@@ -113,15 +129,15 @@ export function Topbar({ onMenuClick, role }) {
 
       <div className="flex items-center gap-3 lg:gap-4">
         {/* Notifications bell */}
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button
             className="relative p-2 rounded-full hover:bg-surface transition-colors"
-            onClick={handleBellClick}
+            onClick={() => { setShowNotifications(v => !v); setShowUserMenu(false); }}
           >
             <Bell size={20} className="text-foreground/70" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-                {unreadCount}
+            {!showNotifications && visibleAlerts.length > 0 && (
+              <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-white flex items-center justify-center">
+                {visibleAlerts.length > 9 ? "9+" : visibleAlerts.length}
               </span>
             )}
           </button>
@@ -129,41 +145,50 @@ export function Topbar({ onMenuClick, role }) {
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 rounded-xl border bg-card shadow-lg z-50 overflow-hidden">
               <div className="px-4 py-3 border-b flex items-center justify-between bg-surface/50">
-                <h3 className="font-semibold text-sm">Notifications</h3>
-                {unreadCount > 0 && (
-                  <Button variant="ghost" size="sm" className="h-auto text-xs px-2 py-1 text-primary"
-                    onClick={() => setNotifications(notifications.map(n => ({ ...n, read: true })))}>
-                    Tout marquer lu
-                  </Button>
+                <h3 className="font-semibold text-sm">Alertes de stock</h3>
+                {visibleAlerts.length > 0 && (
+                  <span className="text-xs font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
+                    {visibleAlerts.length} alerte{visibleAlerts.length > 1 ? "s" : ""}
+                  </span>
                 )}
               </div>
-              <div className="max-h-80 overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <p className="text-sm text-foreground/50 p-4 text-center">Aucune notification</p>
-                ) : (
-                  notifications.map((n) => (
-                    <div key={n.id} className={cn("p-4 border-b last:border-0 hover:bg-muted/30 transition-colors", !n.read && "bg-primary/5")}>
-                      <div className="flex justify-between items-start mb-1">
-                        <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full",
-                          n.level === "Élevé" ? "bg-destructive/10 text-destructive" :
-                          n.level === "Moyenne" ? "bg-amber-500/10 text-amber-600" : "bg-primary/10 text-primary"
-                        )}>
-                          {n.type}
-                        </span>
-                        <span className="text-[10px] text-foreground/50">{n.date}</span>
-                      </div>
-                      <p className="text-sm font-medium mt-2">{n.message}</p>
-                      <p className="text-xs text-foreground/50 mt-0.5">{n.detail}</p>
-                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-                        <Link to={n.path || role.homePath} className="text-xs text-primary hover:underline"
-                          onClick={() => setShowNotifications(false)}>
-                          Voir détails
-                        </Link>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+              {visibleAlerts.length === 0 ? (
+                <p className="text-sm text-foreground/50 p-4 text-center">Tous les stocks sont suffisants</p>
+              ) : (
+                <>
+                  <div className="max-h-64 overflow-y-auto divide-y">
+                    {visibleAlerts.map(s => {
+                      const isRupture = s.quantite === 0;
+                      return (
+                        <div key={s.id} className="px-4 py-3 flex items-start gap-3 hover:bg-surface/40 transition-colors group">
+                          <div className={`mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isRupture ? "bg-destructive/10" : "bg-amber-500/10"}`}>
+                            {isRupture
+                              ? <PackageX size={14} className="text-destructive" />
+                              : <AlertTriangle size={14} className="text-amber-500" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{s.produit?.nomProduit || "—"}</p>
+                            <p className="text-xs text-foreground/50">{s.entrepot?.nomEntrepot || "—"}</p>
+                            <span className={`text-xs font-semibold ${isRupture ? "text-destructive" : "text-amber-500"}`}>
+                              {isRupture ? "Rupture de stock" : `Stock faible : ${s.quantite} unités`}
+                            </span>
+                          </div>
+                          <button onClick={() => dismissOne(s.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-surface text-foreground/40 hover:text-foreground flex-shrink-0 mt-0.5">
+                            <X size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="px-4 py-2.5 border-t bg-surface/20">
+                    <button onClick={dismissAll}
+                      className="flex items-center gap-1.5 text-xs text-foreground/50 hover:text-destructive transition-colors font-medium">
+                      <Trash2 size={12} /> Tout effacer
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -175,11 +200,11 @@ export function Topbar({ onMenuClick, role }) {
             className="flex items-center gap-3 hover:opacity-80 transition-opacity"
           >
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium leading-none">{role.user.firstName} {role.user.lastName}</p>
+              <p className="text-sm font-medium leading-none">{displayName}</p>
               <p className="text-xs text-foreground/50 mt-1">{role.label}</p>
             </div>
             <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
-              {role.user.initials}
+              {initials}
             </div>
           </button>
 
@@ -191,10 +216,10 @@ export function Topbar({ onMenuClick, role }) {
                 onClick={() => setShowUserMenu(false)}
               >
                 <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-                  {role.user.initials}
+                  {initials}
                 </div>
                 <div>
-                  <p className="font-medium text-xs">{role.user.firstName} {role.user.lastName}</p>
+                  <p className="font-medium text-xs">{displayName}</p>
                   <p className="text-[10px] text-foreground/50">{role.label}</p>
                 </div>
               </Link>

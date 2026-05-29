@@ -2,34 +2,43 @@ import { useLocation } from "react-router-dom";
 import { getRoleFromPath } from "../config/roles";
 
 /**
- * Hook de permissions basé sur le rôle déduit de l'URL.
+ * Matrice des droits mise à jour :
  *
- * Matrice des droits (dérivée du diagramme de cas d'utilisation) :
- *
- *                     | Admin | Gestionnaire | Agent
- *  Produits  (CRUD)   |  oui  |     non      |  non
- *  Catégories(CRUD)   |  oui  |     non      |  non
- *  Entrepôts (CRUD)   |  oui  |     non      |  non
- *  Utilisateurs(CRUD) |  oui  |     non      |  non
- *  Stocks    (CRUD)   |  oui  |     oui      |  non
- *  Mouvements(créer)  |  oui  |     oui      |  oui
- *  Export             |  oui  |     oui      |  oui
- *  Consultation       |  oui  |     oui      |  oui
+ *                            | Admin | Gestionnaire | Agent
+ *  Produits  (CRUD)          |  oui  |     non      |  non
+ *  Catégories(CRUD)          |  oui  |     non      |  non
+ *  Entrepôts (add/edit/del)  |  oui  |     non      |  non
+ *  Entrepôts (view+stock)    |  oui  |     oui      |  non
+ *  Utilisateurs(CRUD)        |  oui  |     non      |  non
+ *  Stocks    (CRUD)          |  oui  |     non      |  oui
+ *  Stocks    (export)        |  non  |     oui      |  non
+ *  Mouvements(créer)         |  oui  |     non      |  oui
+ *  Mouvements(chg statut)    |  oui  |     oui      |  non
+ *  Mouvements(select+suppr.) |  oui  |     non      |  oui
+ *  Mouvements(export)        |  oui  |     oui      |  non
+ *  Traçabilité (export)      |  oui  |     oui      |  non
  */
 export function usePermissions() {
   const location = useLocation();
   const role = getRoleFromPath(location.pathname);
 
+  const isAdmin = role.id === "admin";
+  const isGest  = role.id === "gestionnaire";
+  const isAgent = role.id === "agent";
+
   const can = {
-    manageProducts: role.id === "admin",
-    manageCategories: role.id === "admin",
-    manageWarehouses: role.id === "admin",
-    manageUsers: role.id === "admin",
-    manageStocks: role.id === "admin" || role.id === "gestionnaire",
-    recordMovements: true, // les 3 rôles peuvent enregistrer un mouvement
-    editMovements: role.id === "admin" || role.id === "gestionnaire",
-    export: true,
-    viewOnly: role.id === "agent",
+    manageProducts:        isAdmin,
+    manageCategories:      isAdmin,
+    manageWarehouses:      isAdmin,                // add / edit / delete
+    viewWarehouseDetails:  isAdmin || isGest,      // view details + stock modal
+    manageUsers:           isAdmin,
+    manageStocks:          isAdmin || isAgent,     // CRUD stocks
+    exportStocks:          isGest,                 // export only for gestionnaire
+    createMovement:        isAdmin || isAgent,
+    changeMovementStatus:  isAdmin || isGest,
+    bulkDeleteMovements:   isAdmin || isAgent,
+    exportMovements:       isAdmin || isGest,
+    exportTraceability:    isAdmin || isGest,
   };
 
   return { role, can };
