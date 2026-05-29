@@ -136,8 +136,7 @@ export default function Movements() {
   const [selectedMovement, setSelectedMovement] = useState(null);
 
   const [formData, setFormData] = useState({
-    produit_id: "", quantite: "", entrepot_source_id: "", entrepot_destination_id: "",
-    dateMouvement: "", status_mouvement_id: ""
+    produit_id: "", quantite: "", entrepot_source_id: "", entrepot_destination_id: "", dateMouvement: ""
   });
 
   useEffect(() => {
@@ -151,7 +150,7 @@ export default function Movements() {
       setProducts(p);
       setWarehouses(e);
       setStatusList(s);
-      if (s.length > 0) setFormData(f => ({ ...f, status_mouvement_id: s[0].id }));
+      // statusList still used for the inline status selector in the table rows
     }).finally(() => setLoading(false));
   }, []);
 
@@ -198,14 +197,13 @@ export default function Movements() {
         produit_id:              parseInt(formData.produit_id),
         quantite:                parseInt(formData.quantite),
         dateMouvement:           formData.dateMouvement,
-        status_mouvement_id:     parseInt(formData.status_mouvement_id),
         entrepot_source_id:      formData.entrepot_source_id      ? parseInt(formData.entrepot_source_id)      : null,
         entrepot_destination_id: formData.entrepot_destination_id ? parseInt(formData.entrepot_destination_id) : null,
       };
       const created = await movementsApi.create(payload);
       setMovements([created, ...movements]);
       setIsAddModalOpen(false);
-      setFormData({ produit_id: "", quantite: "", entrepot_source_id: "", entrepot_destination_id: "", dateMouvement: "", status_mouvement_id: statusList[0]?.id || "" });
+      setFormData({ produit_id: "", quantite: "", entrepot_source_id: "", entrepot_destination_id: "", dateMouvement: "" });
       toast.success("Transfert créé avec succès.");
     } catch (e) {
       toast.error(e.response?.data?.message || "Erreur lors de la création.");
@@ -411,16 +409,9 @@ export default function Movements() {
               className="bg-surface/30 h-10" />
           </Field>
 
-          <Field label="Statut">
-            <select className={selectClass} value={formData.status_mouvement_id}
-              onChange={e => setFormData({ ...formData, status_mouvement_id: e.target.value })}>
-              {statusList.map(s => <option key={s.id} value={s.id}>{s.nomStatus}</option>)}
-            </select>
-          </Field>
-
           <p className="text-xs text-foreground/45 bg-surface/40 rounded-lg px-3 py-2">
-            Si une Source ou Destination n'est pas sélectionnée, elle sera enregistrée comme vide.
-            Les deux champs vides ne sont pas acceptés.
+            Le statut sera automatiquement défini à <strong>En cours</strong>. Il pourra être mis à jour depuis la liste.
+            Au moins une Source ou une Destination est requise.
           </p>
         </div>
       </Modal>

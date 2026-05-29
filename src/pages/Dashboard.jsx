@@ -136,10 +136,10 @@ export default function Dashboard() {
             <CardTitle>Stock par entrepôt</CardTitle>
             <CardDescription>Stock actuel vs capacité maximale</CardDescription>
           </CardHeader>
-          <CardContent className="pl-2">
+          <CardContent className="p-0 px-2 pb-4">
             <div className="h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={warehouseStockData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <BarChart data={warehouseStockData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#CFE1B9" />
                   <XAxis dataKey="name" stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis stroke="#888" fontSize={12} tickLine={false} axisLine={false} />
@@ -172,14 +172,11 @@ export default function Dashboard() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-3 space-y-1.5">
+            <div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2">
               {categoryData.map((cat, i) => (
-                <div key={cat.name} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="text-foreground/70">{cat.name}</span>
-                  </div>
-                  <span className="font-semibold">{cat.value}</span>
+                <div key={cat.name} className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                  <span className="text-xs text-foreground/70 truncate">{cat.name}</span>
                 </div>
               ))}
             </div>

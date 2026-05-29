@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Package, Bell, Menu, X, LogOut, AlertTriangle, PackageX, Trash2 } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -69,8 +69,14 @@ export function Topbar({ onMenuClick, role }) {
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu,      setShowUserMenu]      = useState(false);
-  const [alerts,      setAlerts]      = useState([]);
-  const [dismissedIds, setDismissedIds] = useState(new Set());
+  const [alerts,       setAlerts]       = useState([]);
+  const [dismissedIds, setDismissedIds] = useState(() => {
+    try {
+      const stored = localStorage.getItem("stockmaster_dismissed_alerts");
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+  const notifRef = useRef(null);
 
   const fetchAlerts = useCallback(() => {
     stocksApi.list()
@@ -84,9 +90,22 @@ export function Topbar({ onMenuClick, role }) {
     return () => clearInterval(interval);
   }, [fetchAlerts]);
 
-  const visibleAlerts  = alerts.filter(a => !dismissedIds.has(a.id));
-  const dismissOne  = (id) => setDismissedIds(prev => new Set([...prev, id]));
-  const dismissAll  = () => setDismissedIds(new Set(alerts.map(a => a.id)));
+  useEffect(() => {
+    localStorage.setItem("stockmaster_dismissed_alerts", JSON.stringify([...dismissedIds]));
+  }, [dismissedIds]);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+    const handler = (e) => {
+      if (!notifRef.current?.contains(e.target)) setShowNotifications(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showNotifications]);
+
+  const visibleAlerts = alerts.filter(a => !dismissedIds.has(a.id));
+  const dismissOne    = (id) => setDismissedIds(prev => new Set([...prev, id]));
+  const dismissAll    = () => setDismissedIds(new Set(alerts.map(a => a.id)));
 
   const displayName = user ? `${user.prenom || ""} ${user.name || ""}`.trim() : role.label;
   const initials    = user
@@ -109,13 +128,13 @@ export function Topbar({ onMenuClick, role }) {
 
       <div className="flex items-center gap-3 lg:gap-4">
         {/* Notifications bell */}
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button
             className="relative p-2 rounded-full hover:bg-surface transition-colors"
             onClick={() => { setShowNotifications(v => !v); setShowUserMenu(false); }}
           >
             <Bell size={20} className="text-foreground/70" />
-            {visibleAlerts.length > 0 && (
+            {!showNotifications && visibleAlerts.length > 0 && (
               <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-white flex items-center justify-center">
                 {visibleAlerts.length > 9 ? "9+" : visibleAlerts.length}
               </span>

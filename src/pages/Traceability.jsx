@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Search, User, TrendingUp, TrendingDown } from "lucide-react";
+import { Search, User, TrendingUp, TrendingDown, Warehouse } from "lucide-react";
 import { tracabilitesApi } from "../api/tracabilites";
 import { TableSkeleton } from "../components/ui/skeleton";
 
@@ -20,10 +20,12 @@ export default function Traceability() {
   }, []);
 
   const filtered = traces.filter(t => {
-    const userName   = t.user ? `${t.user.prenom || ""} ${t.user.name || ""}`.trim() : "";
+    const userName    = t.user ? `${t.user.prenom || ""} ${t.user.name || ""}`.trim() : "";
     const productName = t.produit?.nomProduit || "";
+    const entrepotName = t.entrepot?.nomEntrepot || "";
     const matchSearch = userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      productName.toLowerCase().includes(searchTerm.toLowerCase());
+      productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      entrepotName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchDate = dateFilter === "" || (t.dateAction || "").startsWith(dateFilter);
     return matchSearch && matchDate;
   });
@@ -31,7 +33,7 @@ export default function Traceability() {
   const totalPages      = Math.ceil(filtered.length / itemsPerPage);
   const paginatedTraces = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (loading) return <TableSkeleton rows={5} cols={5} />;
+  if (loading) return <TableSkeleton rows={5} cols={6} />;
 
   return (
     <div className="space-y-6">
@@ -63,6 +65,7 @@ export default function Traceability() {
               <TableRow>
                 <TableHead>Utilisateur</TableHead>
                 <TableHead>Produit</TableHead>
+                <TableHead>Entrepôt</TableHead>
                 <TableHead>Ancienne Qté</TableHead>
                 <TableHead>Nouvelle Qté</TableHead>
                 <TableHead>Date</TableHead>
@@ -81,6 +84,14 @@ export default function Traceability() {
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{trace.produit?.nomProduit || "—"}</TableCell>
+                    <TableCell>
+                      {trace.entrepot ? (
+                        <div className="flex items-center gap-1.5 text-sm text-foreground/70">
+                          <Warehouse size={13} className="text-secondary flex-shrink-0" />
+                          {trace.entrepot.nomEntrepot}
+                        </div>
+                      ) : <span className="text-foreground/35">—</span>}
+                    </TableCell>
                     <TableCell className="font-bold text-foreground/70">{trace.ancienneQuantite ?? "—"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
@@ -101,7 +112,7 @@ export default function Traceability() {
               })}
               {paginatedTraces.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-foreground/40">Aucune trace trouvée</TableCell>
+                  <TableCell colSpan={6} className="text-center py-8 text-foreground/40">Aucune trace trouvée</TableCell>
                 </TableRow>
               )}
             </TableBody>
