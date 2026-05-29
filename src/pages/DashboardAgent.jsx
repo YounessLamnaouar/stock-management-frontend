@@ -1,18 +1,31 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Link } from "react-router-dom";
-import { Package, Factory, ArrowRightLeft, History, Eye, Download, Boxes } from "lucide-react";
-import { mockProducts, mockWarehouses, mockMovements, mockStocks } from "../data/mock";
+import { Package, Factory, ArrowRightLeft, History, Eye, Boxes } from "lucide-react";
+import { dashboardApi } from "../api/dashboard";
+import { stocksApi } from "../api/stocks";
 
 const quickLinks = [
-  { title: "Consulter les produits", description: "Catalogue et catégories", icon: Package, path: "/agent/produits" },
-  { title: "Consulter les entrepôts", description: "Capacité et localisation", icon: Factory, path: "/agent/entrepot" },
-  { title: "Consulter les stocks", description: "Niveaux par entrepôt", icon: Boxes, path: "/agent/stocks" },
+  { title: "Consulter les produits",  description: "Catalogue et catégories",    icon: Package,  path: "/agent/produits" },
+  { title: "Consulter les entrepôts", description: "Capacité et localisation",   icon: Factory,  path: "/agent/entrepot" },
+  { title: "Consulter les stocks",    description: "Niveaux par entrepôt",       icon: Boxes,    path: "/agent/stocks" },
   { title: "Historique des transferts", description: "Transferts entre entrepôts", icon: History, path: "/agent/mouvements" },
 ];
 
 export default function DashboardAgent() {
-  const transferts = mockMovements.filter(m => m.type === "Transfert").slice(0, 3);
+  const [stats,   setStats]   = useState(null);
+  const [stocks,  setStocks]  = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([dashboardApi.stats(), stocksApi.list()])
+      .then(([s, stk]) => { setStats(s); setStocks(stk); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="flex items-center justify-center h-64 text-foreground/50">Chargement...</div>;
+  if (!stats)  return null;
 
   return (
     <div className="space-y-6">
@@ -36,7 +49,7 @@ export default function DashboardAgent() {
             <Package className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockProducts.length}</div>
+            <div className="text-2xl font-bold">{stats.totalProduits}</div>
             <p className="text-xs text-foreground/50">Disponibles à la consultation</p>
           </CardContent>
         </Card>
@@ -46,17 +59,17 @@ export default function DashboardAgent() {
             <Factory className="h-4 w-4 text-secondary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockWarehouses.length}</div>
+            <div className="text-2xl font-bold">{stats.totalEntrepots}</div>
             <p className="text-xs text-foreground/50">Sites de stockage</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Transferts enregistrés</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Mouvements</CardTitle>
             <ArrowRightLeft className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockMovements.filter(m => m.type === "Transfert").length}</div>
+            <div className="text-2xl font-bold">{stats.totalMouvements}</div>
             <p className="text-xs text-foreground/50">Sur la période en cours</p>
           </CardContent>
         </Card>
@@ -88,11 +101,11 @@ export default function DashboardAgent() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Derniers transferts */}
+        {/* Derniers mouvements */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Mes derniers transferts</CardTitle>
+              <CardTitle>Derniers mouvements</CardTitle>
               <CardDescription>Opérations récentes</CardDescription>
             </div>
             <Button asChild variant="outline" size="sm" className="gap-2">
@@ -101,52 +114,53 @@ export default function DashboardAgent() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {transferts.map(mvt => (
+              {(stats.recentMouvements || []).map(mvt => (
                 <div key={mvt.id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                       <ArrowRightLeft size={15} />
                     </div>
                     <div>
-                      <p className="text-sm font-medium">{mvt.product}</p>
+                      <p className="text-sm font-medium">{mvt.produit?.nomProduit || "—"}</p>
                       <p className="text-xs text-foreground/50">
-                        {mvt.source} → {mvt.destination} • Qté {mvt.quantity}
+                        {mvt.entrepot_source?.nomEntrepot || "—"} → {mvt.entrepot_destination?.nomEntrepot || "—"} • Qté {mvt.quantite}
                       </p>
                     </div>
                   </div>
                   <span className="text-xs text-foreground/50 bg-surface/60 px-2 py-1 rounded-lg">
-                    {mvt.date.split(' ')[0]}
+                    {mvt.dateMouvement}
                   </span>
                 </div>
               ))}
+              {(stats.recentMouvements || []).length === 0 && (
+                <p className="text-sm text-foreground/40 text-center py-4">Aucun mouvement récent</p>
+              )}
             </div>
           </CardContent>
         </Card>
 
         {/* Aperçu stock */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Aperçu des stocks</CardTitle>
-              <CardDescription>Niveaux actuels</CardDescription>
-            </div>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Download size={14} /> Exporter
-            </Button>
+          <CardHeader>
+            <CardTitle>Aperçu des stocks</CardTitle>
+            <CardDescription>Niveaux actuels</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockStocks.slice(0, 4).map(stock => (
+              {stocks.slice(0, 5).map(stock => (
                 <div key={stock.id} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
                   <div>
-                    <p className="text-sm font-medium">{stock.product}</p>
-                    <p className="text-xs text-foreground/50">{stock.warehouse}</p>
+                    <p className="text-sm font-medium">{stock.produit?.nomProduit || "—"}</p>
+                    <p className="text-xs text-foreground/50">{stock.entrepot?.nomEntrepot || "—"}</p>
                   </div>
-                  <span className={stock.quantity === 0 ? "font-bold text-destructive" : "font-bold text-primary"}>
-                    {stock.quantity}
+                  <span className={`font-bold text-sm ${stock.quantite === 0 ? "text-destructive" : stock.quantite <= 15 ? "text-amber-600" : "text-primary"}`}>
+                    {stock.quantite}
                   </span>
                 </div>
               ))}
+              {stocks.length === 0 && (
+                <p className="text-sm text-foreground/40 text-center py-4">Aucun stock disponible</p>
+              )}
             </div>
           </CardContent>
         </Card>

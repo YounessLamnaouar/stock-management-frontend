@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Layers, Search, Plus, X, Eye, Edit, Trash2, Package } from "lucide-react";
-import { mockStocks, mockWarehouses, mockProducts } from "../data/mock";
 import { usePermissions } from "../hooks/usePermissions";
+import { stocksApi } from "../api/stocks";
+import { produitsApi } from "../api/produits";
+import { entrepotsApi } from "../api/entrepots";
 
 const Modal = ({ isOpen, onClose, title, subtitle, children, onSave, saveLabel = "Enregistrer" }) => {
   if (!isOpen) return null;
@@ -50,57 +53,90 @@ const InfoRow = ({ label, value, highlight }) => (
   </div>
 );
 
+const selectClass = "flex h-10 w-full rounded-md border border-input bg-surface/30 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
 export default function Stocks() {
   const { can } = usePermissions();
-  const [stocks, setStocks] = useState(mockStocks);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [stocks,     setStocks]     = useState([]);
+  const [products,   setProducts]   = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [saving,     setSaving]     = useState(false);
+  const [searchTerm,      setSearchTerm]      = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState("Tous");
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [formData, setFormData] = useState({ product: "", warehouse: "", quantity: "" });
+  const [isAddOpen,  setIsAddOpen]  = useState(false);
+  const [formData,   setFormData]   = useState({ produit_id: "", entrepot_id: "", quantite: "" });
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedStock, setSelectedStock] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [currentPage,   setCurrentPage]   = useState(1);
+  const itemsPerPage = 5;
 
-  const warehouses = ["Tous", ...mockWarehouses.map(w => w.name)];
+  useEffect(() => {
+    Promise.all([stocksApi.list(), produitsApi.list(), entrepotsApi.list()])
+      .then(([s, p, e]) => { setStocks(s); setProducts(p); setWarehouses(e); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const warehouseOptions = ["Tous", ...warehouses.map(w => w.nomEntrepot)];
 
   const filteredStocks = stocks.filter(s => {
-    const matchSearch = s.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchWarehouse = warehouseFilter === "Tous" || s.warehouse === warehouseFilter;
+    const productName   = s.produit?.nomProduit || "";
+    const warehouseName = s.entrepot?.nomEntrepot || "";
+    const matchSearch   = productName.toLowerCase().includes(searchTerm.toLowerCase()) || String(s.id).includes(searchTerm);
+    const matchWarehouse = warehouseFilter === "Tous" || warehouseName === warehouseFilter;
     return matchSearch && matchWarehouse;
   });
 
-  const totalPages = Math.ceil(filteredStocks.length / itemsPerPage);
+  const totalPages      = Math.ceil(filteredStocks.length / itemsPerPage);
   const paginatedStocks = filteredStocks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const handleSaveAdd = () => {
-    if (!formData.product || !formData.warehouse || !formData.quantity)
-      return alert("Tous les champs sont obligatoires.");
-    setStocks([{
-      id: `STK-${Date.now().toString().slice(-3)}`,
-      product: formData.product,
-      warehouse: formData.warehouse,
-      quantity: parseInt(formData.quantity, 10),
-      updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
-    }, ...stocks]);
-    setIsAddOpen(false);
-    setFormData({ product: "", warehouse: "", quantity: "" });
+  const handleSaveAdd = async () => {
+    if (!formData.produit_id || !formData.entrepot_id || !formData.quantite)
+      return toast.error("Tous les champs sont obligatoires.");
+    setSaving(true);
+    try {
+      const created = await stocksApi.create({
+        produit_id:    parseInt(formData.produit_id),
+        entrepot_id:   parseInt(formData.entrepot_id),
+        quantite:      parseInt(formData.quantite),
+        dateMiseAJour: new Date().toISOString().split("T")[0],
+      });
+      setStocks([created, ...stocks]);
+      setIsAddOpen(false);
+      setFormData({ produit_id: "", entrepot_id: "", quantite: "" });
+      toast.success("Stock créé avec succès.");
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Erreur lors de la création.");
+    } finally { setSaving(false); }
   };
 
-  const handleSaveEdit = () => {
-    if (!selectedStock.product || !selectedStock.warehouse) return alert("Champs obligatoires manquants.");
-    setStocks(stocks.map(s => s.id === selectedStock.id
-      ? { ...selectedStock, updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' ') }
-      : s
-    ));
-    setIsEditOpen(false);
+  const handleSaveEdit = async () => {
+    setSaving(true);
+    try {
+      const updated = await stocksApi.update(selectedStock.id, {
+        quantite:    parseInt(selectedStock.quantite),
+        produit_id:  selectedStock.produit_id  || selectedStock.produit?.id,
+        entrepot_id: selectedStock.entrepot_id || selectedStock.entrepot?.id,
+      });
+      setStocks(stocks.map(s => s.id === updated.id ? updated : s));
+      setIsEditOpen(false);
+      toast.success("Stock mis à jour avec succès.");
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Erreur lors de la mise à jour.");
+    } finally { setSaving(false); }
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Supprimer ce stock ?")) setStocks(stocks.filter(s => s.id !== id));
+  const handleDelete = async (id) => {
+    if (!window.confirm("Supprimer ce stock ?")) return;
+    try {
+      await stocksApi.delete(id);
+      setStocks(stocks.filter(s => s.id !== id));
+      toast.success("Stock supprimé avec succès.");
+    } catch { toast.error("Erreur lors de la suppression."); }
   };
+
+  if (loading) return <div className="flex items-center justify-center h-64 text-foreground/50">Chargement...</div>;
 
   return (
     <div className="space-y-6 relative">
@@ -123,12 +159,12 @@ export default function Stocks() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative w-full sm:w-96">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground/50" />
-              <Input placeholder="Rechercher par produit ou ID..." className="pl-9 bg-surface/30 w-full"
+              <Input placeholder="Rechercher par produit..." className="pl-9 bg-surface/30 w-full"
                 value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
             <select className="h-9 rounded-md px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 border"
               value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}>
-              {warehouses.map(w => <option key={w} value={w}>{w}</option>)}
+              {warehouseOptions.map(w => <option key={w} value={w}>{w}</option>)}
             </select>
           </div>
         </CardHeader>
@@ -136,7 +172,7 @@ export default function Stocks() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID Stock</TableHead>
+                <TableHead>ID</TableHead>
                 <TableHead>Produit</TableHead>
                 <TableHead>Entrepôt</TableHead>
                 <TableHead>Quantité</TableHead>
@@ -153,16 +189,16 @@ export default function Stocks() {
                       <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
                         <Package size={13} className="text-primary" />
                       </div>
-                      <span className="font-semibold text-primary">{stock.product}</span>
+                      <span className="font-semibold text-primary">{stock.produit?.nomProduit || "—"}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-foreground/70">{stock.warehouse}</TableCell>
+                  <TableCell className="text-foreground/70">{stock.entrepot?.nomEntrepot || "—"}</TableCell>
                   <TableCell>
-                    <span className={`font-bold text-base ${stock.quantity === 0 ? 'text-destructive' : stock.quantity <= 15 ? 'text-amber-600' : 'text-primary'}`}>
-                      {stock.quantity}
+                    <span className={`font-bold text-base ${stock.quantite === 0 ? 'text-destructive' : stock.quantite <= 15 ? 'text-amber-600' : 'text-primary'}`}>
+                      {stock.quantite}
                     </span>
                   </TableCell>
-                  <TableCell className="text-xs text-foreground/50">{stock.updatedAt}</TableCell>
+                  <TableCell className="text-xs text-foreground/50">{stock.dateMiseAJour || "—"}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-secondary hover:bg-secondary/10"
@@ -172,7 +208,7 @@ export default function Stocks() {
                       {can.manageStocks && (
                         <>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10"
-                            onClick={() => { setSelectedStock(stock); setIsEditOpen(true); }}>
+                            onClick={() => { setSelectedStock({ ...stock }); setIsEditOpen(true); }}>
                             <Edit size={14} />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10"
@@ -207,24 +243,25 @@ export default function Stocks() {
 
       {/* Add Modal */}
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Nouveau stock"
-        subtitle="Associez un produit à un entrepôt" onSave={handleSaveAdd}>
+        subtitle="Associez un produit à un entrepôt"
+        onSave={handleSaveAdd} saveLabel={saving ? "..." : "Enregistrer"}>
         <div className="space-y-4">
           <Field label="Produit" required>
-            <select className="flex h-10 w-full rounded-md border border-input bg-surface/30 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              value={formData.product} onChange={e => setFormData({ ...formData, product: e.target.value })}>
+            <select className={selectClass} value={formData.produit_id}
+              onChange={e => setFormData({ ...formData, produit_id: e.target.value })}>
               <option value="" disabled>Sélectionner un produit...</option>
-              {mockProducts.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+              {products.map(p => <option key={p.id} value={p.id}>{p.nomProduit}</option>)}
             </select>
           </Field>
           <Field label="Entrepôt" required>
-            <select className="flex h-10 w-full rounded-md border border-input bg-surface/30 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              value={formData.warehouse} onChange={e => setFormData({ ...formData, warehouse: e.target.value })}>
+            <select className={selectClass} value={formData.entrepot_id}
+              onChange={e => setFormData({ ...formData, entrepot_id: e.target.value })}>
               <option value="" disabled>Sélectionner un entrepôt...</option>
-              {mockWarehouses.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
+              {warehouses.map(w => <option key={w.id} value={w.id}>{w.nomEntrepot}</option>)}
             </select>
           </Field>
           <Field label="Quantité" required>
-            <Input type="number" value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })}
+            <Input type="number" value={formData.quantite} onChange={e => setFormData({ ...formData, quantite: e.target.value })}
               placeholder="Ex: 50" className="bg-surface/30 h-10" />
           </Field>
         </div>
@@ -232,24 +269,19 @@ export default function Stocks() {
 
       {/* Edit Modal */}
       <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Modifier le stock"
-        subtitle="Mettez à jour la quantité" onSave={handleSaveEdit}>
+        subtitle="Mettez à jour la quantité"
+        onSave={handleSaveEdit} saveLabel={saving ? "..." : "Enregistrer"}>
         {selectedStock && (
           <div className="space-y-4">
-            <Field label="Produit" required>
-              <select className="flex h-10 w-full rounded-md border border-input bg-surface/30 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={selectedStock.product} onChange={e => setSelectedStock({ ...selectedStock, product: e.target.value })}>
-                {mockProducts.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-              </select>
-            </Field>
-            <Field label="Entrepôt" required>
-              <select className="flex h-10 w-full rounded-md border border-input bg-surface/30 px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={selectedStock.warehouse} onChange={e => setSelectedStock({ ...selectedStock, warehouse: e.target.value })}>
-                {mockWarehouses.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
-              </select>
-            </Field>
+            <div className="bg-surface/40 rounded-xl px-4 py-3 text-sm">
+              <span className="text-foreground/50">Produit: </span>
+              <span className="font-semibold">{selectedStock.produit?.nomProduit}</span>
+              <span className="text-foreground/50 ml-4">Entrepôt: </span>
+              <span className="font-semibold">{selectedStock.entrepot?.nomEntrepot}</span>
+            </div>
             <Field label="Quantité" required>
-              <Input type="number" value={selectedStock.quantity}
-                onChange={e => setSelectedStock({ ...selectedStock, quantity: parseInt(e.target.value) || 0 })}
+              <Input type="number" value={selectedStock.quantite}
+                onChange={e => setSelectedStock({ ...selectedStock, quantite: parseInt(e.target.value) || 0 })}
                 className="bg-surface/30 h-10" />
             </Field>
           </div>
@@ -265,17 +297,17 @@ export default function Stocks() {
                 <Layers size={22} className="text-primary" />
               </div>
               <div>
-                <p className="font-semibold text-base">{selectedStock.product}</p>
-                <p className="text-sm text-foreground/50">{selectedStock.warehouse}</p>
+                <p className="font-semibold text-base">{selectedStock.produit?.nomProduit}</p>
+                <p className="text-sm text-foreground/50">{selectedStock.entrepot?.nomEntrepot}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <InfoRow label="ID Stock" value={selectedStock.id} />
-              <InfoRow label="Quantité actuelle" value={selectedStock.quantity} highlight />
-              <InfoRow label="Produit" value={selectedStock.product} />
-              <InfoRow label="Entrepôt" value={selectedStock.warehouse} />
+              <InfoRow label="ID Stock"          value={selectedStock.id} />
+              <InfoRow label="Quantité actuelle" value={selectedStock.quantite} highlight />
+              <InfoRow label="Produit"           value={selectedStock.produit?.nomProduit} />
+              <InfoRow label="Entrepôt"          value={selectedStock.entrepot?.nomEntrepot} />
               <div className="col-span-2">
-                <InfoRow label="Dernière mise à jour" value={selectedStock.updatedAt} />
+                <InfoRow label="Dernière mise à jour" value={selectedStock.dateMiseAJour} />
               </div>
             </div>
           </div>

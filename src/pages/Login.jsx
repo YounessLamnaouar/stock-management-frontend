@@ -53,7 +53,7 @@ export default function Login() {
     setError("");
     setLoading(true);
     await new Promise(r => setTimeout(r, 500));
-    const result = login(email, password);
+    const result = await login(email, password);
     setLoading(false);
     if (result.success) {
       navigate(result.role.homePath, { replace: true });
@@ -67,7 +67,7 @@ export default function Login() {
     setActiveRole(roleKey);
     setLoading(true);
     await new Promise(r => setTimeout(r, 400));
-    const result = loginAsRole(roleKey);
+    const result = await loginAsRole(roleKey);
     setLoading(false);
     setActiveRole(null);
     if (result.success) navigate(result.role.homePath, { replace: true });

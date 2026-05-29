@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Plus, Search, Eye, Edit, Trash2, X, Tags, Calendar } from "lucide-react";
-import { mockCategories } from "../data/mock";
+import { categoriesApi } from "../api/categories";
 import { usePermissions } from "../hooks/usePermissions";
 
 const Modal = ({ isOpen, onClose, title, subtitle, children, onSave, saveLabel = "Enregistrer" }) => {
@@ -52,45 +53,67 @@ const InfoRow = ({ label, value }) => (
 
 export default function Categories() {
   const { can } = usePermissions();
-  const [categories, setCategories] = useState(mockCategories);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
 
-  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isAddOpen,  setIsAddOpen]  = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [formData, setFormData] = useState({ name: "" });
+  const [formData, setFormData] = useState({ nomCategorie: "" });
+
+  useEffect(() => {
+    categoriesApi.list().then(setCategories).finally(() => setLoading(false));
+  }, []);
 
   const filteredCategories = categories.filter(c =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.id.toLowerCase().includes(searchTerm.toLowerCase())
+    (c.nomCategorie || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    String(c.id).includes(searchTerm)
   );
 
-  const totalPages = Math.ceil(filteredCategories.length / itemsPerPage);
+  const totalPages        = Math.ceil(filteredCategories.length / itemsPerPage);
   const paginatedCategories = filteredCategories.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const handleDelete = (id) => {
-    if (window.confirm("Confirmer la suppression de cette catégorie ?"))
+  const handleDelete = async (id) => {
+    if (!window.confirm("Confirmer la suppression de cette catégorie ?")) return;
+    try {
+      await categoriesApi.delete(id);
       setCategories(categories.filter(c => c.id !== id));
+      toast.success("Catégorie supprimée avec succès.");
+    } catch { toast.error("Erreur lors de la suppression."); }
   };
 
-  const handleSaveAdd = () => {
-    if (!formData.name) return alert("Veuillez saisir le Nom de la catégorie.");
-    setCategories([{
-      ...formData,
-      id: `CAT-00${categories.length + 1}`,
-      createdAt: new Date().toISOString().split('T')[0]
-    }, ...categories]);
-    setIsAddOpen(false);
-    setFormData({ name: "" });
+  const handleSaveAdd = async () => {
+    if (!formData.nomCategorie) return toast.error("Veuillez saisir le nom de la catégorie.");
+    setSaving(true);
+    try {
+      const created = await categoriesApi.create({ nomCategorie: formData.nomCategorie });
+      setCategories([created, ...categories]);
+      setIsAddOpen(false);
+      setFormData({ nomCategorie: "" });
+      toast.success("Catégorie créée avec succès.");
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Erreur lors de la création.");
+    } finally { setSaving(false); }
   };
 
-  const handleSaveEdit = () => {
-    setCategories(categories.map(c => c.id === selectedCategory.id ? selectedCategory : c));
-    setIsEditOpen(false);
+  const handleSaveEdit = async () => {
+    setSaving(true);
+    try {
+      const updated = await categoriesApi.update(selectedCategory.id, { nomCategorie: selectedCategory.nomCategorie });
+      setCategories(categories.map(c => c.id === updated.id ? updated : c));
+      setIsEditOpen(false);
+      toast.success("Catégorie mise à jour avec succès.");
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Erreur lors de la mise à jour.");
+    } finally { setSaving(false); }
   };
+
+  if (loading) return <div className="flex items-center justify-center h-64 text-foreground/50">Chargement...</div>;
 
   return (
     <div className="space-y-6 relative">
@@ -137,13 +160,13 @@ export default function Categories() {
                       <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
                         <Tags size={13} className="text-primary" />
                       </div>
-                      <span className="font-semibold text-primary">{cat.name}</span>
+                      <span className="font-semibold text-primary">{cat.nomCategorie}</span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5 text-xs text-foreground/50">
                       <Calendar size={12} />
-                      {cat.createdAt}
+                      {cat.created_at?.slice(0, 10) || "—"}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
@@ -155,7 +178,7 @@ export default function Categories() {
                       {can.manageCategories && (
                         <>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10"
-                            onClick={() => { setSelectedCategory(cat); setIsEditOpen(true); }}>
+                            onClick={() => { setSelectedCategory({ ...cat }); setIsEditOpen(true); }}>
                             <Edit size={15} />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10"
@@ -168,6 +191,11 @@ export default function Categories() {
                   </TableCell>
                 </TableRow>
               ))}
+              {paginatedCategories.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-foreground/40">Aucune catégorie trouvée</TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
 
@@ -185,20 +213,22 @@ export default function Categories() {
 
       {/* Add Modal */}
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Nouvelle catégorie"
-        subtitle="Ajoutez une catégorie à votre catalogue" onSave={handleSaveAdd}>
+        subtitle="Ajoutez une catégorie à votre catalogue"
+        onSave={handleSaveAdd} saveLabel={saving ? "..." : "Enregistrer"}>
         <Field label="Nom de la catégorie" required>
-          <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })}
+          <Input value={formData.nomCategorie} onChange={e => setFormData({ nomCategorie: e.target.value })}
             placeholder="Ex: Électronique" className="bg-surface/30 h-10" autoFocus />
         </Field>
       </Modal>
 
       {/* Edit Modal */}
       <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Modifier la catégorie"
-        subtitle="Mettez à jour le nom" onSave={handleSaveEdit}>
+        subtitle="Mettez à jour le nom"
+        onSave={handleSaveEdit} saveLabel={saving ? "..." : "Enregistrer"}>
         {selectedCategory && (
           <Field label="Nom de la catégorie" required>
-            <Input value={selectedCategory.name}
-              onChange={e => setSelectedCategory({ ...selectedCategory, name: e.target.value })}
+            <Input value={selectedCategory.nomCategorie || ""}
+              onChange={e => setSelectedCategory({ ...selectedCategory, nomCategorie: e.target.value })}
               className="bg-surface/30 h-10" autoFocus />
           </Field>
         )}
@@ -213,13 +243,13 @@ export default function Categories() {
                 <Tags size={22} className="text-primary" />
               </div>
               <div>
-                <p className="font-semibold text-base">{selectedCategory.name}</p>
-                <p className="text-sm text-foreground/50 font-mono">{selectedCategory.id}</p>
+                <p className="font-semibold text-base">{selectedCategory.nomCategorie}</p>
+                <p className="text-sm text-foreground/50 font-mono">#{selectedCategory.id}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <InfoRow label="Identifiant" value={selectedCategory.id} />
-              <InfoRow label="Date de création" value={selectedCategory.createdAt} />
+              <InfoRow label="Identifiant"      value={selectedCategory.id} />
+              <InfoRow label="Date de création" value={selectedCategory.created_at?.slice(0, 10)} />
             </div>
           </div>
         )}

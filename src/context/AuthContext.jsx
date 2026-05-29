@@ -1,51 +1,78 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { ROLES } from "../config/roles";
+import { authApi } from "../api/auth";
 
-export const DEMO_ACCOUNTS = [
-  { email: "ahmed.radi@compagnie.ma", password: "admin123", role: ROLES.admin },
-  { email: "sara.mernissi@compagnie.ma", password: "gest123", role: ROLES.gestionnaire },
-  { email: "karim.lahlou@compagnie.ma", password: "agent123", role: ROLES.agent },
-];
+const ROLE_MAP = {
+  Admin:        ROLES.admin,
+  Gestionnaire: ROLES.gestionnaire,
+  Agent:        ROLES.agent,
+};
+
+const QUICK_CREDENTIALS = {
+  admin:        { email: "admin@gmail.com",        password: "123456" },
+  gestionnaire: { email: "gestionnaire@gmail.com", password: "123456" },
+  agent:        { email: "agent@gmail.com",        password: "123456" },
+};
+
+function buildUser(apiUser, token) {
+  const roleName = apiUser.role?.nomRole || "Agent";
+  return {
+    id:     apiUser.id,
+    prenom: apiUser.prenom || "",
+    name:   apiUser.name   || "",
+    email:  apiUser.email,
+    token,
+    role: ROLE_MAP[roleName] || ROLES.agent,
+  };
+}
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem("stockmaster_user");
-      return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
-  });
+  const [user, setUser]       = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = (email, password) => {
-    const account = DEMO_ACCOUNTS.find(
-      a => a.email.toLowerCase() === email.toLowerCase() && a.password === password
-    );
-    if (account) {
-      setUser(account);
-      localStorage.setItem("stockmaster_user", JSON.stringify(account));
-      return { success: true, role: account.role };
+  // Restore session on mount
+  useEffect(() => {
+    const token = localStorage.getItem("stockmaster_token");
+    if (!token) { setLoading(false); return; }
+    authApi.me()
+      .then((apiUser) => setUser(buildUser(apiUser, token)))
+      .catch(() => {
+        localStorage.removeItem("stockmaster_token");
+        localStorage.removeItem("stockmaster_user");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const login = async (email, password) => {
+    try {
+      const data     = await authApi.login(email, password);
+      const userData = buildUser(data.user, data.token);
+      localStorage.setItem("stockmaster_token", data.token);
+      localStorage.setItem("stockmaster_user",  JSON.stringify(userData));
+      setUser(userData);
+      return { success: true, role: userData.role };
+    } catch {
+      return { success: false };
     }
-    return { success: false };
   };
 
   const loginAsRole = (roleKey) => {
-    const account = DEMO_ACCOUNTS.find(a => a.role.id === roleKey);
-    if (account) {
-      setUser(account);
-      localStorage.setItem("stockmaster_user", JSON.stringify(account));
-      return { success: true, role: account.role };
-    }
-    return { success: false };
+    const creds = QUICK_CREDENTIALS[roleKey];
+    if (!creds) return Promise.resolve({ success: false });
+    return login(creds.email, creds.password);
   };
 
-  const logout = () => {
-    setUser(null);
+  const logout = async () => {
+    try { await authApi.logout(); } catch { /* ignore */ }
+    localStorage.removeItem("stockmaster_token");
     localStorage.removeItem("stockmaster_user");
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, loginAsRole, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, loginAsRole, logout, loading, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

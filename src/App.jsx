@@ -18,7 +18,8 @@ import Agents from "./pages/Agents";
 import Settings from "./pages/Settings";
 
 function RequireAuth({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return <div className="flex h-screen items-center justify-center text-foreground/50">Chargement...</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return children;
 }

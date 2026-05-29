@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { User, Lock, Bell, Palette } from "lucide-react";
+import { User, Lock, Palette } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
+import { useAuth } from "../context/AuthContext";
 
 export default function Settings() {
   const { role } = usePermissions();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("Profil");
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -72,18 +74,18 @@ export default function Settings() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Prénom</label>
-                      <Input key={role.id + "-fn"} defaultValue={role.user.firstName} className="bg-surface/30 px-3" />
+                      <Input key={role.id + "-fn"} defaultValue={user?.prenom || ""} className="bg-surface/30 px-3" />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Nom</label>
-                      <Input key={role.id + "-ln"} defaultValue={role.user.lastName} className="bg-surface/30 px-3" />
+                      <Input key={role.id + "-ln"} defaultValue={user?.name || ""} className="bg-surface/30 px-3" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Email professionnel</label>
                     <Input
                       key={role.id + "-em"}
-                      defaultValue={`${role.user.firstName.toLowerCase()}.${role.user.lastName.toLowerCase()}@compagnie.ma`}
+                      defaultValue={user?.email || ""}
                       type="email"
                       className="bg-surface/30 px-3"
                     />
@@ -96,23 +98,6 @@ export default function Settings() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Préférences Globales</CardTitle>
-                  <CardDescription>Paramètres de l'entreprise et export.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Format d'export par défaut</label>
-                    <select className="flex h-9 w-full rounded-md border border-input bg-surface/30 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                      <option>Excel (.xlsx)</option>
-                      <option>CSV (.csv)</option>
-                      <option>PDF (.pdf)</option>
-                    </select>
-                  </div>
-                  <Button variant="outline" onClick={handleSave}>Mettre à jour les paramètres</Button>
-                </CardContent>
-              </Card>
             </>
           )}
 

@@ -4,24 +4,7 @@ import { Package, Bell, Menu, X, LogOut } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { getRoleFromPath } from "../../config/roles";
-import { mockAlerts } from "../../data/mock";
 import { useAuth } from "../../context/AuthContext";
-
-function buildNotifications(role) {
-  return mockAlerts
-    .filter((a) => a.status !== "Clôturé")
-    .slice(0, 4)
-    .map((a, i) => ({
-      id: a.id,
-      type: a.level === "Élevé" ? "Alerte: Niveau Élevé" : a.level === "Moyenne" ? "Alerte: Niveau Moyen" : "Alerte: Information",
-      level: a.level,
-      message: `${a.message} : ${a.product}`,
-      detail: a.warehouse,
-      date: i === 0 ? "Il y a 5 min" : i === 1 ? "Il y a 1h" : "Aujourd'hui",
-      read: false,
-      path: `${role.homePath}/stocks`,
-    }));
-}
 
 export function Sidebar({ isOpen, setIsOpen, role }) {
   const location = useLocation();
@@ -84,21 +67,15 @@ export function Topbar({ onMenuClick, role }) {
   const currentTitle = role.nav.find((item) => item.path === location.pathname)?.title || "Page";
 
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState(() => buildNotifications(role));
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showUserMenu,      setShowUserMenu]      = useState(false);
+  
+  const displayName = user ? `${user.prenom || ""} ${user.name || ""}`.trim() : role.label;
+  const initials    = user
+    ? ((user.prenom?.[0] || "") + (user.name?.[0] || "")).toUpperCase() || "?"
+    : role.label[0].toUpperCase();
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const handleBellClick = () => {
-    setShowNotifications(!showNotifications);
-    setShowUserMenu(false);
-    if (unreadCount > 0 && !showNotifications) {
-      setNotifications(notifications.map((n) => ({ ...n, read: true })));
-    }
-  };
-
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login", { replace: true });
   };
 
@@ -116,54 +93,17 @@ export function Topbar({ onMenuClick, role }) {
         <div className="relative">
           <button
             className="relative p-2 rounded-full hover:bg-surface transition-colors"
-            onClick={handleBellClick}
+            onClick={() => { setShowNotifications(v => !v); setShowUserMenu(false); }}
           >
             <Bell size={20} className="text-foreground/70" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-                {unreadCount}
-              </span>
-            )}
           </button>
 
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 rounded-xl border bg-card shadow-lg z-50 overflow-hidden">
               <div className="px-4 py-3 border-b flex items-center justify-between bg-surface/50">
                 <h3 className="font-semibold text-sm">Notifications</h3>
-                {unreadCount > 0 && (
-                  <Button variant="ghost" size="sm" className="h-auto text-xs px-2 py-1 text-primary"
-                    onClick={() => setNotifications(notifications.map(n => ({ ...n, read: true })))}>
-                    Tout marquer lu
-                  </Button>
-                )}
               </div>
-              <div className="max-h-80 overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <p className="text-sm text-foreground/50 p-4 text-center">Aucune notification</p>
-                ) : (
-                  notifications.map((n) => (
-                    <div key={n.id} className={cn("p-4 border-b last:border-0 hover:bg-muted/30 transition-colors", !n.read && "bg-primary/5")}>
-                      <div className="flex justify-between items-start mb-1">
-                        <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full",
-                          n.level === "Élevé" ? "bg-destructive/10 text-destructive" :
-                          n.level === "Moyenne" ? "bg-amber-500/10 text-amber-600" : "bg-primary/10 text-primary"
-                        )}>
-                          {n.type}
-                        </span>
-                        <span className="text-[10px] text-foreground/50">{n.date}</span>
-                      </div>
-                      <p className="text-sm font-medium mt-2">{n.message}</p>
-                      <p className="text-xs text-foreground/50 mt-0.5">{n.detail}</p>
-                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-                        <Link to={n.path || role.homePath} className="text-xs text-primary hover:underline"
-                          onClick={() => setShowNotifications(false)}>
-                          Voir détails
-                        </Link>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+              <p className="text-sm text-foreground/50 p-4 text-center">Aucune notification</p>
             </div>
           )}
         </div>
@@ -175,11 +115,11 @@ export function Topbar({ onMenuClick, role }) {
             className="flex items-center gap-3 hover:opacity-80 transition-opacity"
           >
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium leading-none">{role.user.firstName} {role.user.lastName}</p>
+              <p className="text-sm font-medium leading-none">{displayName}</p>
               <p className="text-xs text-foreground/50 mt-1">{role.label}</p>
             </div>
             <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
-              {role.user.initials}
+              {initials}
             </div>
           </button>
 
@@ -191,10 +131,10 @@ export function Topbar({ onMenuClick, role }) {
                 onClick={() => setShowUserMenu(false)}
               >
                 <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-                  {role.user.initials}
+                  {initials}
                 </div>
                 <div>
-                  <p className="font-medium text-xs">{role.user.firstName} {role.user.lastName}</p>
+                  <p className="font-medium text-xs">{displayName}</p>
                   <p className="text-[10px] text-foreground/50">{role.label}</p>
                 </div>
               </Link>
