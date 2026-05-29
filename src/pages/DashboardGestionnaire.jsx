@@ -54,7 +54,7 @@ export default function DashboardGestionnaire() {
         </div>
         <Button asChild className="gap-2">
           <Link to="/gestionnaire/mouvements">
-            <ArrowRightLeft size={16} /> Enregistrer un transfert
+            <ArrowRightLeft size={16} /> Consulter les mouvements
           </Link>
         </Button>
       </div>

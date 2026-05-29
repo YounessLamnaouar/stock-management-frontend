@@ -91,6 +91,7 @@ function AppRoutes() {
                 <Route path="/gestionnaire" element={<DashboardGestionnaire />} />
                 <Route path="/gestionnaire/produits" element={<Products />} />
                 <Route path="/gestionnaire/categories" element={<Categories />} />
+                <Route path="/gestionnaire/entrepot" element={<Warehouses />} />
                 <Route path="/gestionnaire/stocks" element={<Stocks />} />
                 <Route path="/gestionnaire/mouvements" element={<Movements />} />
                 <Route path="/gestionnaire/tracabilite" element={<Traceability />} />

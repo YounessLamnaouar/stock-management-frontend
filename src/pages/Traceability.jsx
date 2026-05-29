@@ -3,11 +3,13 @@ import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Search, User, TrendingUp, TrendingDown, Warehouse } from "lucide-react";
+import { Search, User, TrendingUp, TrendingDown, Warehouse, Download } from "lucide-react";
 import { tracabilitesApi } from "../api/tracabilites";
 import { TableSkeleton } from "../components/ui/skeleton";
+import { usePermissions } from "../hooks/usePermissions";
 
 export default function Traceability() {
+  const { can } = usePermissions();
   const [traces,     setTraces]     = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,6 +35,24 @@ export default function Traceability() {
   const totalPages      = Math.ceil(filtered.length / itemsPerPage);
   const paginatedTraces = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  const handleExport = () => {
+    const headers = ["Utilisateur", "Produit", "Entrepôt", "Ancienne Qté", "Nouvelle Qté", "Date"];
+    const rows = traces.map(t => [
+      `"${t.user ? `${t.user.prenom || ""} ${t.user.name || ""}`.trim() : ""}"`,
+      `"${t.produit?.nomProduit || ""}"`,
+      `"${t.entrepot?.nomEntrepot || ""}"`,
+      t.ancienneQuantite ?? "",
+      t.nouvelleQuantite ?? "",
+      `"${t.dateAction?.replace("T", " ").slice(0, 16) || ""}"`,
+    ]);
+    const csv  = [headers, ...rows].map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = "tracabilite.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) return <TableSkeleton rows={5} cols={6} />;
 
   return (
@@ -42,6 +62,11 @@ export default function Traceability() {
           <h2 className="text-3xl font-bold tracking-tight text-primary">Traçabilité</h2>
           <p className="text-foreground/60">Suivi des modifications de quantités de stock par utilisateur.</p>
         </div>
+        {can.exportTraceability && (
+          <Button variant="outline" className="gap-2" onClick={handleExport}>
+            <Download size={16} /> Exporter
+          </Button>
+        )}
       </div>
 
       <Card>

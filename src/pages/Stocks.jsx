@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Layers, Search, Plus, X, Eye, Edit, Trash2, Package } from "lucide-react";
+import { Layers, Search, Plus, X, Eye, Edit, Trash2, Package, Download } from "lucide-react";
 import { usePermissions } from "../hooks/usePermissions";
 import { stocksApi } from "../api/stocks";
 import { produitsApi } from "../api/produits";
@@ -133,6 +133,23 @@ export default function Stocks() {
     } finally { setSaving(false); }
   };
 
+  const handleExport = () => {
+    const headers = ["ID", "Produit", "Entrepôt", "Quantité", "Mise à jour"];
+    const rows = stocks.map(s => [
+      s.id,
+      `"${s.produit?.nomProduit || ""}"`,
+      `"${s.entrepot?.nomEntrepot || ""}"`,
+      s.quantite,
+      s.dateMiseAJour || "",
+    ]);
+    const csv  = [headers, ...rows].map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = "stocks.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm("Supprimer ce stock ?")) return;
     try {
@@ -153,11 +170,18 @@ export default function Stocks() {
           </h2>
           <p className="text-foreground/60">Consultez le niveau des stocks par entrepôt.</p>
         </div>
-        {can.manageStocks && (
-          <Button className="gap-2" onClick={() => setIsAddOpen(true)}>
-            <Plus size={16} /> Nouveau Stock
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {can.exportStocks && (
+            <Button variant="outline" className="gap-2" onClick={handleExport}>
+              <Download size={16} /> Exporter
+            </Button>
+          )}
+          {can.manageStocks && (
+            <Button className="gap-2" onClick={() => setIsAddOpen(true)}>
+              <Plus size={16} /> Nouveau Stock
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card>

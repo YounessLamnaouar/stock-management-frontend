@@ -208,20 +208,24 @@ export default function Warehouses() {
                       onClick={() => { setSelectedWarehouseForStock(warehouse); setIsStockModalOpen(true); }}>
                       <BarChart2 size={14} /> Consulter le stock
                     </Button>
-                    {can.manageWarehouses && (
+                    {can.viewWarehouseDetails && (
                       <div className="flex gap-2 justify-end">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-secondary hover:bg-secondary/10"
                           onClick={() => { setSelectedWarehouse(warehouse); setIsViewOpen(true); }}>
                           <Eye size={15} />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10"
-                          onClick={() => { setSelectedWarehouse({ ...warehouse }); setIsEditOpen(true); }}>
-                          <Edit size={15} />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(warehouse.id)}>
-                          <Trash2 size={15} />
-                        </Button>
+                        {can.manageWarehouses && (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10"
+                              onClick={() => { setSelectedWarehouse({ ...warehouse }); setIsEditOpen(true); }}>
+                              <Edit size={15} />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDelete(warehouse.id)}>
+                              <Trash2 size={15} />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

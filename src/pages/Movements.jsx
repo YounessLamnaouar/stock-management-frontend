@@ -258,12 +258,16 @@ export default function Movements() {
           <p className="text-foreground/60">Suivez tous les transferts de stock entre entrepôts.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={handleExport}>
-            <Download size={16} /> Exporter
-          </Button>
-          <Button className="gap-2 text-white" onClick={() => setIsAddModalOpen(true)}>
-            Nouveau Transfert
-          </Button>
+          {can.exportMovements && (
+            <Button variant="outline" className="gap-2" onClick={handleExport}>
+              <Download size={16} /> Exporter
+            </Button>
+          )}
+          {can.createMovement && (
+            <Button className="gap-2 text-white" onClick={() => setIsAddModalOpen(true)}>
+              Nouveau Transfert
+            </Button>
+          )}
         </div>
       </div>
 
@@ -285,7 +289,7 @@ export default function Movements() {
                 className="pl-9 w-full bg-surface/30"
                 value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
             </div>
-            {selectedIds.size > 0 && can.editMovements && (
+            {selectedIds.size > 0 && can.bulkDeleteMovements && (
               <Button variant="destructive" size="sm" className="gap-1.5 h-9" onClick={handleBulkDelete}>
                 <Trash2 size={14} /> Supprimer ({selectedIds.size})
               </Button>
@@ -296,15 +300,17 @@ export default function Movements() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10 pl-4">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-primary"
-                    checked={allSelected}
-                    ref={el => { if (el) el.indeterminate = someSelected; }}
-                    onChange={toggleSelectAll}
-                  />
-                </TableHead>
+                {can.bulkDeleteMovements && (
+                  <TableHead className="w-10 pl-4">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-primary"
+                      checked={allSelected}
+                      ref={el => { if (el) el.indeterminate = someSelected; }}
+                      onChange={toggleSelectAll}
+                    />
+                  </TableHead>
+                )}
                 <TableHead>ID</TableHead>
                 <TableHead>Produit</TableHead>
                 <TableHead>Qté</TableHead>
@@ -320,14 +326,16 @@ export default function Movements() {
                 const locked     = statusName === "Validée" || statusName === "Annulée";
                 return (
                   <TableRow key={mvt.id} className={locked ? "opacity-50" : ""}>
-                    <TableCell className="pl-4">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-primary"
-                        checked={selectedIds.has(mvt.id)}
-                        onChange={() => toggleSelect(mvt.id)}
-                      />
-                    </TableCell>
+                    {can.bulkDeleteMovements && (
+                      <TableCell className="pl-4">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-primary"
+                          checked={selectedIds.has(mvt.id)}
+                          onChange={() => toggleSelect(mvt.id)}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium text-xs">{mvt.id}</TableCell>
                     <TableCell className="font-medium">{mvt.produit?.nomProduit || "—"}</TableCell>
                     <TableCell className="font-bold">{mvt.quantite}</TableCell>
@@ -342,7 +350,7 @@ export default function Movements() {
                       <StatusSelect
                         value={statusName}
                         onChange={(newStatus) => handleStatusChange(mvt, newStatus)}
-                        disabled={locked || !can.editMovements}
+                        disabled={locked || !can.changeMovementStatus}
                         statusList={statusList}
                       />
                     </TableCell>
@@ -351,7 +359,7 @@ export default function Movements() {
               })}
               {paginatedMovements.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-foreground/40">
+                  <TableCell colSpan={can.bulkDeleteMovements ? 8 : 7} className="text-center py-8 text-foreground/40">
                     Aucun transfert trouvé
                   </TableCell>
                 </TableRow>
