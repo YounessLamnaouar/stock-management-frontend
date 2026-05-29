@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { TableSkeleton } from "../components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Input } from "../components/ui/input";
@@ -147,7 +148,7 @@ export default function Agents() {
     } finally { setSaving(false); }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-foreground/50">Chargement...</div>;
+  if (loading) return <TableSkeleton rows={5} cols={5} />;
 
   return (
     <div className="space-y-6 relative">

@@ -64,6 +64,13 @@ export function AuthProvider({ children }) {
     return login(creds.email, creds.password);
   };
 
+  const updateUser = (apiUser) => {
+    const token = localStorage.getItem("stockmaster_token");
+    const updated = buildUser(apiUser, token);
+    localStorage.setItem("stockmaster_user", JSON.stringify(updated));
+    setUser(updated);
+  };
+
   const logout = async () => {
     try { await authApi.logout(); } catch { /* ignore */ }
     localStorage.removeItem("stockmaster_token");
@@ -72,7 +79,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, loginAsRole, logout, loading, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, loginAsRole, logout, updateUser, loading, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

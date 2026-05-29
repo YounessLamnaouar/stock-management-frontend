@@ -9,6 +9,7 @@ import { usePermissions } from "../hooks/usePermissions";
 import { stocksApi } from "../api/stocks";
 import { produitsApi } from "../api/produits";
 import { entrepotsApi } from "../api/entrepots";
+import { TableSkeleton } from "../components/ui/skeleton";
 
 const Modal = ({ isOpen, onClose, title, subtitle, children, onSave, saveLabel = "Enregistrer" }) => {
   if (!isOpen) return null;
@@ -92,8 +93,10 @@ export default function Stocks() {
   const paginatedStocks = filteredStocks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleSaveAdd = async () => {
-    if (!formData.produit_id || !formData.entrepot_id || !formData.quantite)
+    if (!formData.produit_id || !formData.entrepot_id || formData.quantite === "")
       return toast.error("Tous les champs sont obligatoires.");
+    if (parseInt(formData.quantite) < 0)
+      return toast.error("La quantité ne peut pas être négative.");
     setSaving(true);
     try {
       const created = await stocksApi.create({
@@ -112,10 +115,13 @@ export default function Stocks() {
   };
 
   const handleSaveEdit = async () => {
+    const newQty = parseInt(selectedStock.quantite);
+    if (isNaN(newQty) || newQty < 0)
+      return toast.error("La quantité à définir doit être supérieure ou égale à 0.");
     setSaving(true);
     try {
       const updated = await stocksApi.update(selectedStock.id, {
-        quantite:    parseInt(selectedStock.quantite),
+        quantite:    newQty,
         produit_id:  selectedStock.produit_id  || selectedStock.produit?.id,
         entrepot_id: selectedStock.entrepot_id || selectedStock.entrepot?.id,
       });
@@ -136,7 +142,7 @@ export default function Stocks() {
     } catch { toast.error("Erreur lors de la suppression."); }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-foreground/50">Chargement...</div>;
+  if (loading) return <TableSkeleton rows={5} cols={6} />;
 
   return (
     <div className="space-y-6 relative">

@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Package, Bell, Menu, X, LogOut } from "lucide-react";
+import { Package, Bell, Menu, X, LogOut, AlertTriangle, PackageX, Trash2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { getRoleFromPath } from "../../config/roles";
 import { useAuth } from "../../context/AuthContext";
+import { stocksApi } from "../../api/stocks";
 
 export function Sidebar({ isOpen, setIsOpen, role }) {
   const location = useLocation();
@@ -68,7 +69,25 @@ export function Topbar({ onMenuClick, role }) {
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu,      setShowUserMenu]      = useState(false);
-  
+  const [alerts,      setAlerts]      = useState([]);
+  const [dismissedIds, setDismissedIds] = useState(new Set());
+
+  const fetchAlerts = useCallback(() => {
+    stocksApi.list()
+      .then(stocks => setAlerts(stocks.filter(s => s.quantite === 0 || s.quantite <= 15)))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, 30000);
+    return () => clearInterval(interval);
+  }, [fetchAlerts]);
+
+  const visibleAlerts  = alerts.filter(a => !dismissedIds.has(a.id));
+  const dismissOne  = (id) => setDismissedIds(prev => new Set([...prev, id]));
+  const dismissAll  = () => setDismissedIds(new Set(alerts.map(a => a.id)));
+
   const displayName = user ? `${user.prenom || ""} ${user.name || ""}`.trim() : role.label;
   const initials    = user
     ? ((user.prenom?.[0] || "") + (user.name?.[0] || "")).toUpperCase() || "?"
@@ -96,14 +115,60 @@ export function Topbar({ onMenuClick, role }) {
             onClick={() => { setShowNotifications(v => !v); setShowUserMenu(false); }}
           >
             <Bell size={20} className="text-foreground/70" />
+            {visibleAlerts.length > 0 && (
+              <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-white flex items-center justify-center">
+                {visibleAlerts.length > 9 ? "9+" : visibleAlerts.length}
+              </span>
+            )}
           </button>
 
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 rounded-xl border bg-card shadow-lg z-50 overflow-hidden">
               <div className="px-4 py-3 border-b flex items-center justify-between bg-surface/50">
-                <h3 className="font-semibold text-sm">Notifications</h3>
+                <h3 className="font-semibold text-sm">Alertes de stock</h3>
+                {visibleAlerts.length > 0 && (
+                  <span className="text-xs font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
+                    {visibleAlerts.length} alerte{visibleAlerts.length > 1 ? "s" : ""}
+                  </span>
+                )}
               </div>
-              <p className="text-sm text-foreground/50 p-4 text-center">Aucune notification</p>
+              {visibleAlerts.length === 0 ? (
+                <p className="text-sm text-foreground/50 p-4 text-center">Tous les stocks sont suffisants</p>
+              ) : (
+                <>
+                  <div className="max-h-64 overflow-y-auto divide-y">
+                    {visibleAlerts.map(s => {
+                      const isRupture = s.quantite === 0;
+                      return (
+                        <div key={s.id} className="px-4 py-3 flex items-start gap-3 hover:bg-surface/40 transition-colors group">
+                          <div className={`mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isRupture ? "bg-destructive/10" : "bg-amber-500/10"}`}>
+                            {isRupture
+                              ? <PackageX size={14} className="text-destructive" />
+                              : <AlertTriangle size={14} className="text-amber-500" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{s.produit?.nomProduit || "—"}</p>
+                            <p className="text-xs text-foreground/50">{s.entrepot?.nomEntrepot || "—"}</p>
+                            <span className={`text-xs font-semibold ${isRupture ? "text-destructive" : "text-amber-500"}`}>
+                              {isRupture ? "Rupture de stock" : `Stock faible : ${s.quantite} unités`}
+                            </span>
+                          </div>
+                          <button onClick={() => dismissOne(s.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-surface text-foreground/40 hover:text-foreground flex-shrink-0 mt-0.5">
+                            <X size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="px-4 py-2.5 border-t bg-surface/20">
+                    <button onClick={dismissAll}
+                      className="flex items-center gap-1.5 text-xs text-foreground/50 hover:text-destructive transition-colors font-medium">
+                      <Trash2 size={12} /> Tout effacer
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

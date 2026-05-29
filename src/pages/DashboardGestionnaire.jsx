@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
+import { DashboardSkeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
 import { Link } from "react-router-dom";
 import { Package, Layers, ArrowRightLeft, AlertTriangle, PackageMinus } from "lucide-react";
@@ -36,7 +37,7 @@ export default function DashboardGestionnaire() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-foreground/50">Chargement...</div>;
+  if (loading) return <DashboardSkeleton />;
   if (!stats)  return null;
 
   const lowStock          = stocks.filter(s => s.quantite > 0 && s.quantite <= 15);

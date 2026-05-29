@@ -7,6 +7,7 @@ import { Button } from "../components/ui/button";
 import { Plus, Search, Eye, Edit, Trash2, X, Tags, Calendar } from "lucide-react";
 import { categoriesApi } from "../api/categories";
 import { usePermissions } from "../hooks/usePermissions";
+import { TableSkeleton } from "../components/ui/skeleton";
 
 const Modal = ({ isOpen, onClose, title, subtitle, children, onSave, saveLabel = "Enregistrer" }) => {
   if (!isOpen) return null;
@@ -113,7 +114,7 @@ export default function Categories() {
     } finally { setSaving(false); }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-foreground/50">Chargement...</div>;
+  if (loading) return <TableSkeleton rows={5} cols={4} />;
 
   return (
     <div className="space-y-6 relative">

@@ -11,6 +11,7 @@ import { produitsApi } from "../api/produits";
 import { entrepotsApi } from "../api/entrepots";
 import { statusMovementsApi } from "../api/statusMovements";
 import { usePermissions } from "../hooks/usePermissions";
+import { TableSkeleton } from "../components/ui/skeleton";
 
 const Modal = ({ isOpen, onClose, title, subtitle, children, onSave }) => {
   if (!isOpen) return null;
@@ -246,7 +247,7 @@ export default function Movements() {
     } catch { toast.error("Erreur lors de l'export."); }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-foreground/50">Chargement...</div>;
+  if (loading) return <TableSkeleton rows={5} cols={6} />;
 
   return (
     <div className="space-y-6 relative">

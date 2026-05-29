@@ -5,6 +5,7 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Search, User, TrendingUp, TrendingDown } from "lucide-react";
 import { tracabilitesApi } from "../api/tracabilites";
+import { TableSkeleton } from "../components/ui/skeleton";
 
 export default function Traceability() {
   const [traces,     setTraces]     = useState([]);
@@ -30,7 +31,7 @@ export default function Traceability() {
   const totalPages      = Math.ceil(filtered.length / itemsPerPage);
   const paginatedTraces = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-foreground/50">Chargement...</div>;
+  if (loading) return <TableSkeleton rows={5} cols={5} />;
 
   return (
     <div className="space-y-6">

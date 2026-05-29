@@ -19,7 +19,18 @@ import Settings from "./pages/Settings";
 
 function RequireAuth({ children }) {
   const { isAuthenticated, loading } = useAuth();
-  if (loading) return <div className="flex h-screen items-center justify-center text-foreground/50">Chargement...</div>;
+  if (loading) return (
+    <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center animate-pulse">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          </svg>
+        </div>
+        <p className="text-sm text-foreground/50 font-medium">Chargement en cours…</p>
+      </div>
+    </div>
+  );
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return children;
 }

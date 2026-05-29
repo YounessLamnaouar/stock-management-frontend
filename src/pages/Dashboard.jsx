@@ -8,6 +8,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { dashboardApi } from "../api/dashboard";
+import { DashboardSkeleton } from "../components/ui/skeleton";
 
 const COLORS = ['#718355', '#97A97C', '#CFE1B9', '#B5C99A', '#87986A'];
 
@@ -35,7 +36,7 @@ export default function Dashboard() {
     dashboardApi.stats().then(setStats).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-foreground/50">Chargement...</div>;
+  if (loading) return <DashboardSkeleton />;
   if (!stats)  return null;
 
   const warehouseStockData = (stats.stockParEntrepot || []).map(w => ({
@@ -136,7 +137,7 @@ export default function Dashboard() {
             <CardDescription>Stock actuel vs capacité maximale</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <div className="h-[280px]">
+            <div className="h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={warehouseStockData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#CFE1B9" />
